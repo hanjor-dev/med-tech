@@ -1,0 +1,844 @@
+/* Button 按钮
+------------------------------- */
+// 第三方字体图标大小
+.el-button:not(.is-circle) i.el-icon,
+.el-button i.iconfont,
+.el-button i.fa,
+.el-button--default i.iconfont,
+.el-button--default i.fa {
+  font-size: 14px !important;
+  margin-right: 5px;
+}
+.el-button--small i.iconfont,
+.el-button--small i.fa {
+  font-size: 12px !important;
+  margin-right: 5px;
+}
+:root {
+  --bg: #eef3f9;
+  --surface: #ffffff;
+  --surface-raised: #f4f8fd;
+  --surface-hover: #edf5ff;
+
+  --blue: #1e6fd9;
+  --blue-mid: #3b8af5;
+  --blue-light: #dbeeff;
+  --blue-pale: #f0f8ff;
+  --blue-dark: #1557b0;
+
+  --teal: #0d9488;
+  --teal-light: #e0f2fe;
+  --teal-dark: #0f766e;
+
+  --amber: #d97706;
+  --amber-light: #fef3c7;
+  --amber-dark: #b45309;
+  --danger: #dc2626;
+  --danger-light: #fee2e2;
+  --success: #059669;
+  --success-light: #d1fae5;
+
+  --text: #0f172a;
+  --text-mid: #1e3a5f;
+  --text-muted: #4a6a8a;
+  --text-faint: #7a9ab8;
+  --text-xfaint: #b0c8e0;
+
+  --border: #d0dfe9;
+  --border-mid: #aec5db;
+  --border-strong: #7a9ab8;
+
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm:
+    0 2px 8px rgba(15, 23, 42, 0.07), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow: 0 4px 16px rgba(15, 23, 42, 0.09), 0 2px 6px rgba(15, 23, 42, 0.05);
+  --shadow-lg:
+    0 12px 40px rgba(15, 23, 42, 0.13), 0 4px 12px rgba(15, 23, 42, 0.07);
+  --shadow-blue: 0 4px 20px rgba(30, 111, 217, 0.2);
+  --shadow-teal: 0 4px 20px rgba(13, 148, 136, 0.2);
+
+  --radius-xs: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  --font: "Noto Sans SC", "DM Sans", -apple-system, sans-serif;
+  --font-mono: "DM Mono", "Fira Code", monospace;
+}
+
+/* Input 输入框、InputNumber 计数器
+------------------------------- */
+// 菜单搜索
+.el-autocomplete-suggestion__wrap {
+  max-height: 280px !important;
+}
+
+/* 全局输入类组件统一底色 #FAFAF9（Input / Select / InputNumber / Textarea） */
+/* Dialog / Drawer 弹框内的表单输入 */
+.el-dialog,
+.el-drawer {
+  .el-input__wrapper,
+  .el-select__wrapper,
+  .el-input-number .el-input__wrapper,
+  .el-textarea__inner {
+    background-color: #fafaf9 !important;
+  }
+}
+
+/* Form 表单
+------------------------------- */
+.el-form {
+  // 用于修改弹窗时表单内容间隔太大问题，如系统设置的新增菜单弹窗里的表单内容
+  .el-form-item:last-of-type {
+    // margin-bottom: 0 !important;
+  }
+  // 修复行内表单最后一个 el-form-item 位置下移问题
+  &.el-form--inline {
+    .el-form-item--large.el-form-item:last-of-type {
+      margin-bottom: 22px !important;
+    }
+    .el-form-item--default.el-form-item:last-of-type,
+    .el-form-item--small.el-form-item:last-of-type {
+      margin-bottom: 18px !important;
+    }
+  }
+  .el-form-item .el-form-item__label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 5px;
+  }
+  // https://gitee.com/lyt-top/vue-next-admin/issues/I5K1PM
+  .el-form-item .el-form-item__label .el-icon {
+    margin-right: 0px;
+  }
+}
+
+/* Alert 警告
+------------------------------- */
+.el-alert {
+  border: 1px solid;
+}
+.el-alert__title {
+  word-break: break-all;
+}
+
+/* Message 消息提示
+------------------------------- */
+.el-message {
+  min-width: unset !important;
+  padding: 15px !important;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.02);
+}
+
+/* NavMenu 导航菜单
+------------------------------- */
+
+// 全局菜单变量覆盖（浅色暖白主题）
+.el-menu {
+  border-right: none !important;
+  --el-menu-text-color: #6b7280;
+  --el-menu-hover-text-color: #111827;
+  --el-menu-hover-bg-color: rgba(0, 0, 0, 0.04);
+  --el-menu-active-color: #2f5bff;
+  --el-menu-bg-color: transparent;
+  --el-menu-base-level-padding: 10px;
+}
+
+.el-menu-item,
+.el-sub-menu__title {
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: #6b7280 !important;
+  // padding: 0 12px !important;
+  margin-bottom: 2px !important;
+  transition: all 0.18s ease !important;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent !important;
+  border-radius: 6px;
+  outline: none !important;
+
+  .iconfont {
+    font-size: 16px !important;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0;
+    width: 20px;
+    text-align: center;
+    color: #9ca3af;
+    transition: color 0.18s ease;
+    flex-shrink: 0;
+  }
+}
+
+/* 一级菜单 hover */
+.el-menu-item:hover,
+.el-sub-menu__title:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  color: #111827 !important;
+
+  .iconfont {
+    color: #6b7280;
+  }
+}
+
+/* 一级菜单激活态 */
+.el-menu-item.is-active,
+.el-sub-menu.is-active > .el-sub-menu__title {
+  background-color: #eef2ff !important;
+  color: #2f5bff !important;
+  font-weight: 600 !important;
+  border-color: rgba(47, 91, 255, 0.15) !important;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    border-radius: 0 3px 3px 0;
+    background: #2f5bff;
+  }
+
+  .iconfont {
+    color: #2f5bff;
+  }
+}
+
+/* 已展开父级菜单的标题（不激活左侧边线） */
+.el-sub-menu.is-active.is-opened > .el-sub-menu__title {
+  background-color: unset !important;
+  color: #6b7280 !important;
+  border: none !important;
+
+  .iconfont {
+    color: #9ca3af;
+  }
+}
+
+/* 二级（inline）子菜单 */
+.el-menu--inline {
+  border-left: 2px solid #f0f0ee;
+  margin-left: 24px;
+  padding-left: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  .el-menu-item {
+    height: 34px !important;
+    line-height: 34px !important;
+    font-size: 12.8px !important;
+    font-weight: 500 !important;
+    padding: 0 12px 0 16px !important;
+    margin: 1px 0;
+    border-radius: 4px;
+    color: #6b7280 !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .iconfont {
+      font-size: 6px !important;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #9ca3af;
+      margin-right: 0;
+      display: inline-block;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+  }
+
+  .el-menu-item:hover {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+    color: #111827 !important;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: -4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 50%;
+      background: #93c5fd;
+      border-radius: 2px;
+    }
+
+    .iconfont {
+      background: #9ca3af;
+    }
+  }
+
+  .el-menu-item.is-active {
+    background-color: #dbeafe !important;
+    color: #2f5bff !important;
+    font-weight: 600 !important;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: -4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 60%;
+      background: #0891b2;
+      border-radius: 2px;
+    }
+
+    .iconfont {
+      background: #0891b2;
+    }
+  }
+}
+
+/* 收起时菜单宽度 */
+.el-menu--collapse {
+  width: 50px !important;
+}
+.el-menu--collapse .el-menu-item,
+.el-menu--collapse .el-sub-menu{
+  outline: none !important;
+  border: none !important;
+  background-color: transparent !important;
+}
+/* 收起时选中菜单：撑满宽度 + 左侧蓝色指示条 */
+.el-menu--collapse .el-menu-item.is-active,
+.el-menu--collapse .el-sub-menu.is-active > .el-sub-menu__title {
+  background-color: #eef2ff !important;
+  border-radius: 8px !important;
+  color: #2f5bff !important;
+  border: none !important;
+  padding: 0 !important;
+  justify-content: center;
+  margin: 0 !important;
+  position: relative;
+  width: 45px;
+  gap: 0;
+  outline: none !important;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0px;
+    height: 60%;
+    border-radius: 0 3px 3px 0;
+    background: transparent;
+  }
+
+  .iconfont,
+  .sub-icon {
+    color: #2f5bff !important;
+    margin-right: 0 !important;
+  }
+}
+
+/* 收起时 hover 圆角 */
+.el-menu--collapse .el-menu-item:hover:not(.is-active),
+.el-menu--collapse .el-sub-menu__title:hover:not(.is-active) {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  border-radius: 8px !important;
+  border: 0 !important;
+  width: 45px;
+}
+
+/* 收起时子菜单弹出层白色圆角 */
+.el-menu--collapse .el-menu {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+
+/* 外部链接样式 */
+.el-menu-item a,
+.el-menu-item a:hover,
+.el-menu-item i,
+.el-sub-menu__title i {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 菜单展开箭头位置 */
+.el-sub-menu {
+  .el-sub-menu__icon-arrow {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: rotate(-90deg) !important;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 12px;
+    color: #9ca3af;
+  }
+  .el-sub-menu.is-opened > .el-sub-menu__title .el-sub-menu__icon-arrow {
+    transform: rotate(90deg) !important;
+  }
+}
+
+/* Tabs 标签页
+------------------------------- */
+.el-tabs__nav-wrap::after {
+  height: 1px !important;
+}
+
+/* Dropdown 下拉菜单
+------------------------------- */
+.el-dropdown-menu {
+  list-style: none !important; /*修复 Dropdown 下拉菜单样式问题 2022.03.04*/
+}
+.el-dropdown-menu .el-dropdown-menu__item {
+  white-space: nowrap;
+  &:not(.is-disabled):hover {
+    background-color: var(--el-dropdown-menuItem-hover-fill);
+    color: var(--el-dropdown-menuItem-hover-color);
+  }
+  // When v-permission hides the inner span, hide the entire li to avoid blank item
+  &:has(> span[style*="display: none"]) {
+    display: none;
+  }
+}
+
+/* Steps 步骤条
+------------------------------- */
+.el-step__icon-inner {
+  font-size: 30px !important;
+  font-weight: 400 !important;
+}
+.el-step__title {
+  font-size: 14px;
+}
+
+/* Dialog 对话框
+------------------------------- */
+.el-overlay {
+  overflow: hidden;
+  .el-overlay-dialog {
+    display: flex;
+    margin-top: 10vh;
+    justify-content: center;
+    position: unset !important;
+    width: 100%;
+    height: 100%;
+    .el-dialog {
+      margin: 0 auto !important;
+      position: absolute;
+      padding: 0;
+      .el-dialog__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        position: relative;
+        &::after {
+          content: "";
+          position: absolute;
+          bottom: -1px;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            var(--blue-mid),
+            transparent
+          );
+          opacity: 0.25;
+        }
+        .dialog-header__left {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .dialog-header__title {
+          font-size: 17px;
+          font-weight: 700;
+          color: var(--text);
+          letter-spacing: -0.2px;
+        }
+
+        .dialog-header__subtitle {
+          font-size: 12px;
+          color: var(--text-muted);
+          font-family: var(--font-mono);
+          font-weight: 400;
+        }
+
+        .dialog-header__actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .dialog-close {
+          width: 32px;
+          height: 32px;
+          border-radius: var(--radius);
+          border: 1px solid var(--border);
+          background: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: var(--text-muted);
+          transition: all 0.15s ease;
+        }
+
+        .dialog-close:hover {
+          background: var(--surface-hover);
+          color: var(--blue);
+          border-color: var(--blue-light);
+        }
+      }
+      .el-dialog__body {
+        .el-form {
+          .el-radio-group {
+            .el-radio-button__inner {
+              font-size: 12px;
+            }
+            .el-radio-button.is-active {
+              .el-radio-button__inner {
+                border: 1px solid #409eff;
+              }
+            }
+            .el-radio-button:not(.is-active) {
+              .el-radio-button__inner {
+                border: 1px solid #dcdfe6;
+              }
+            }
+          }
+        }
+      }
+      .el-dialog__footer {
+        padding: 14px 24px 16px;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+        position: relative;
+        &::before {
+          content: "";
+          position: absolute;
+          top: -1px;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            var(--border-mid),
+            transparent
+          );
+        }
+        .btn {
+          height: 34px;
+          padding: 0 18px;
+          border-radius: var(--radius);
+          border: 1.5px solid var(--border);
+          font-family: var(--font);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .btn-ghost {
+          background: transparent;
+          color: var(--text-muted);
+        }
+        .btn-primary {
+          background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+          color: white;
+          border-color: transparent;
+          box-shadow: var(--shadow-blue);
+        }
+        .btn-warning {
+          background: linear-gradient(135deg, var(--amber), var(--amber-dark));
+          color: white;
+          border-color: transparent;
+          box-shadow: var(--shadow-amber);
+        }
+        .dlr-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          justify-content: flex-end;
+          flex-wrap: wrap;
+          .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 16px;
+            border-radius: 9px;
+            border: 1.5px solid transparent;
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-family: inherit;
+            user-select: none;
+            &:active {
+              transform: scale(0.97);
+            }
+          }
+          .action-btn-approve {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #15803d!important;
+
+            &:hover {
+              background: #dcfce7!important;
+              border-color: #86efac;
+              box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+              transform: translateY(-1px);
+            }
+
+            &.is-loading {
+              opacity: 0.6;
+              cursor: not-allowed;
+              transform: none;
+            }
+          }
+          .action-btn-reject {
+            background: #fff1f2;
+            border-color: #fecdd3;
+            color: #be123c!important;
+            &:hover {
+              background: #ffe4e6!important;
+              border-color: #fda4af;
+              box-shadow: 0 4px 12px rgba(244, 63, 94, 0.2);
+              transform: translateY(-1px);
+            }
+
+            &.is-loading {
+              opacity: 0.6;
+              cursor: not-allowed;
+              transform: none;
+            }
+          }
+          .action-btn-modify {
+            background: #fefce8;
+            border-color: #fde68a;
+            color: #92400e!important;
+
+            &:hover {
+              background: #fef9c3;
+              border-color: #facc15;
+              box-shadow: 0 4px 12px rgba(245, 158, 11, 0.18);
+              transform: translateY(-1px);
+            }
+
+            &.is-loading {
+              opacity: 0.6;
+              cursor: not-allowed;
+              transform: none;
+            }
+          }
+          .action-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+          }
+          .action-label {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+          }
+        }
+      }
+    }
+  }
+}
+.el-dialog__body {
+  max-height: 600px !important;
+  overflow: hidden;
+}
+
+/* Card 卡片
+------------------------------- */
+.el-card {
+  --el-card-padding: 10px;
+  --el-card-border-radius: 10px;
+  .el-card__header {
+    padding: 10px 15px;
+    position: relative;
+  }
+  .el-button.is-text {
+    padding: 0;
+  }
+}
+
+// 带 el-table 的 el-card 去除 body padding
+.el-card:has(.el-table) .el-card__body {
+  padding: 0;
+}
+
+/* Table 表格 element plus 2.2.0 版本
+------------------------------- */
+.el-table {
+  .el-button.is-text {
+    padding: 0;
+  }
+}
+
+/* scrollbar
+------------------------------- */
+.el-scrollbar__bar {
+  z-index: 4;
+}
+/*防止页面切换时，滚动条高度不变的问题（滚动条高度非滚动条滚动高度）*/
+.el-scrollbar__wrap {
+  max-height: 100%;
+}
+.el-select-dropdown .el-scrollbar__wrap {
+  overflow-x: scroll !important;
+}
+/*修复Select 选择器高度问题*/
+.el-select-dropdown__wrap {
+  max-height: 274px !important;
+}
+.el-select-dropdown__item{
+  max-width: 100% !important;
+}
+/*修复Cascader 级联选择器高度问题*/
+.el-cascader-menu__wrap.el-scrollbar__wrap {
+  height: 204px !important;
+}
+/*用于界面高度自适应（main.vue），区分 scrollbar__view，防止其它使用 scrollbar 的地方出现滚动条消失*/
+.layout-container-view .el-scrollbar__view {
+  height: 100%;
+}
+/*防止分栏布局二级菜单很多时，滚动条消失问题*/
+.layout-columns-warp .layout-aside .el-scrollbar__view {
+  height: unset !important;
+}
+
+/* Pagination 分页
+------------------------------- */
+.el-pagination__editor {
+  margin-right: 8px;
+}
+/*深色模式时分页高亮问题*/
+.el-pagination.is-background .btn-next.is-active,
+.el-pagination.is-background .btn-prev.is-active,
+.el-pagination.is-background .el-pager li.is-active {
+  background-color: var(--el-color-primary) !important;
+  color: var(--el-color-white) !important;
+}
+
+/* Drawer 抽屉
+------------------------------- */
+.el-drawer {
+  --el-drawer-padding-primary: unset !important;
+  .el-drawer__header {
+    padding: 0 15px !important;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0 !important;
+    border-bottom: 1px solid var(--el-border-color);
+    color: var(--el-text-color-primary);
+  }
+  .el-drawer__body {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+  }
+}
+
+/**表格*/
+.el-table {
+  // --el-table-header-bg-color: #f0f7ff;
+  thead {
+    --el-table-header-text-color: #303133;
+  }
+  th.el-table__cell {
+    &:first-child {
+      border-top-left-radius: 6px;
+    }
+    &:last-child {
+      border-top-right-radius: 6px;
+    }
+  }
+}
+
+// ── 通用弹出框表单样式 ─────────────────────────────────────────
+
+/* 表单网格 */
+.form-grid {
+  display: grid;
+  gap: 14px;
+
+  &--3col {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  &--2col {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* 字段组 */
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  &--required .field-label::after {
+    content: "*";
+    color: #ef4444;
+    margin-left: 2px;
+    font-size: 12px;
+  }
+
+  :deep(.el-input__wrapper),
+  :deep(.el-select .el-input__wrapper) {
+    border-radius: 8px;
+    transition:
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+    border: 1px solid #e2e8f0;
+    box-shadow: none;
+
+    &:hover {
+      border-color: #94a3b8;
+    }
+
+    &.is-focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+  }
+
+  :deep(.el-input__inner) {
+    font-size: 13px;
+    color: #1e293b;
+
+    &::placeholder {
+      color: #cbd5e1;
+    }
+  }
+}
+
+/* 字段标签 */
+.field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.3px;
+}

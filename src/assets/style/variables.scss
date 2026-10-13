@@ -1,0 +1,49 @@
+/* =============================================
+   全局主题变量 - CSS Custom Properties
+   统一管理所有颜色主题变量，便于维护和切换
+   ============================================= */
+
+:root {
+	/* Element Plus 主色 */
+	--el-color-primary: #2f5bff;
+	--el-color-primary-light-3: #4d76ff;
+	--el-color-primary-light-5: #6d8cff;
+	--el-color-primary-light-7: #93a2ff;
+	--el-color-primary-light-8: #a3b1ff;
+	--el-color-primary-light-9: #dadff6;
+	--el-color-primary-dark-2: #1e3aed;
+
+	/* 布局背景色 */
+	--next-color-white: #ffffff;
+	--next-bg-main-color: #f0f2f5;
+	--next-bg-color: #f5f5ff;
+	--next-border-color-light: #f1f2f3;
+
+	/* 辅助色 */
+	--next-color-primary-lighter: #eef2ff;
+	--next-color-success-lighter: #f0f9eb;
+	--next-color-warning-lighter: #fdf6ec;
+	--next-color-danger-lighter: #fef0f0;
+
+	/* 悬停色 */
+	--next-color-dark-hover: #0000001a;
+	--next-color-menu-hover: rgba(0, 0, 0, 0.04);
+	--next-color-user-hover: rgba(0, 0, 0, 0.04);
+
+	/* 侧边栏、头部背景色 */
+	--next-color-seting-main: #e9eef3;
+	--next-color-seting-aside: #d3dce6;
+	--next-color-seting-header: #b3c0d1;
+
+	/* 侧栏主色：与 el-color-primary 联动 */
+	--next-bg-menuBar: #ffffff;
+
+	/* 侧栏激活背景 */
+	--next-bg-menuBarActiveColor: #eef2ff;
+
+	/* 主内容背景 */
+	--next-bg-main-color: #fafaf9;
+
+	/* 顶部文字色 */
+	--next-bg-topBarColor: #606266;
+}
