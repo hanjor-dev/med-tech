@@ -5,7 +5,7 @@ export interface CleanupTask { id: string; olderThanDays: number; status: string
 
 /** COS 清理管理接口；仅供管理员/公司管理员菜单调用。 */
 export function evaluateCleanup(data: { olderThanDays: number }) {
-  return $axios<CleanupEvaluation>('/api/backup/cleanup/v1/evaluate', { method: 'post', data })
+  return $axios<CleanupEvaluation>('/api/backup/cleanup/v1/dry-runs', { method: 'post', data })
 }
 export function listCleanupTasks() { return $axios<CleanupTask[]>('/api/backup/cleanup/v1/tasks') }
 export function getCleanupTask(id: string) { return $axios<CleanupTask>(`/api/backup/cleanup/v1/tasks/${id}`) }
