@@ -1,3 +1,4 @@
+import { buildSignHeaders } from '@/utils/signature'
 import $axios from '@/utils/http'
 import type { ImageFileVO } from './order'
 import { Session } from '@/utils/storage'
@@ -32,7 +33,7 @@ export interface DesignWorkorderVO {
   businessTypeName: string
   orderType: number
   orderTypeName: string
-  needsPhysicalDelivery: number
+  needsPhysicalDelivery: number | null
   needsPhysicalDeliveryName: string
   patientName: string
   hospitalId: number
@@ -194,6 +195,7 @@ export interface PackageListItem {
   fileCount: number
   uploadTime: string
   files: PackageFileItem[]
+  processingApplication?: ProcessingDocument | null
   latestInstruction: PackageInstructionVO | null
   latestDrawings: PackageDrawingVO[]
   batchId?: number | null
@@ -255,7 +257,7 @@ export interface DesignWorkorderDetailVO {
   rejectReason: string | null
   orderType: number
   orderTypeName: string
-  needsPhysicalDelivery: number
+  needsPhysicalDelivery: number | null
   needsPhysicalDeliveryName: string
   businessType: string
   businessTypeName: string
@@ -374,6 +376,79 @@ export async function designPrintInfoOptions(orderId: number, packageId: number)
 
 export async function designPrintInfoOptionsWithBatch(orderId: number, packageId: number, batchId: number): Promise<any> {
   return $axios(`/design/workorder/${orderId}/package/${packageId}/print-info/options?batchId=${batchId}`)
+}
+
+export interface ProcessingDocument {
+  documentId: number
+  revision: number
+  fileName: string
+  previewUrl: string
+  downloadUrl?: string | null
+}
+
+export interface ProcessingItem {
+  id?: number | null
+  packageFileId: number | null
+  materialCode: string | null
+  quantity: number | null
+  remark: string | null
+}
+
+export interface ProcessingDraft {
+  deliveryTime: string | null
+  processingRequirements: string | null
+  postalAddress: string | null
+  items: ProcessingItem[]
+}
+
+export interface ProcessingApplication extends ProcessingDraft {
+  id?: number | null
+  revision: number
+  status: 'DRAFT' | 'ARCHIVED'
+  orderId: number
+  packageId: number
+  packageCode: string
+  batchId?: number | null
+  header: {
+    orderCode: string; orgName: string; areaName: string; operatorName: string
+    orderDate: string; hospitalName: string; operatorPhone: string; productName: string
+    preparerName: string; preparedDate: string
+  }
+  materialOptions: Array<{ code: string; name: string }>
+  files: Array<{ id: number; fileName: string; fileExt: string; productionModel: boolean }>
+  editable: boolean
+  document?: ProcessingDocument | null
+}
+
+const processingPath = (orderId: number, packageId: number) =>
+  `/design/workorder/${orderId}/package/${packageId}/processing-application`
+
+export function getProcessingApplication(orderId: number, packageId: number, batchId?: number | null) {
+  return $axios.get<unknown, ProcessingApplication>(processingPath(orderId, packageId), { params: batchId == null ? undefined : { batchId } })
+}
+
+export function saveProcessingApplication(orderId: number, packageId: number, batchId: number | null, draft: ProcessingDraft & { expectedRevision: number }) {
+  return $axios.post<unknown, ProcessingApplication>(processingPath(orderId, packageId), draft, { params: batchId == null ? undefined : { batchId } })
+}
+
+export function generateProcessingDocument(orderId: number, packageId: number, batchId: number | null, expectedRevision: number) {
+  return $axios.post<unknown, ProcessingDocument>(processingPath(orderId, packageId) + '/document', { expectedRevision }, { params: batchId == null ? undefined : { batchId } })
+}
+
+export async function downloadProcessingDocument(orderId: number, packageId: number, doc: ProcessingDocument) {
+  const response = await fetch('/yi' + processingPath(orderId, packageId) + `/document/${doc.documentId}/download`, {
+    headers: { Authorization: `Bearer ${Session.get('token') || ''}`, ...buildSignHeaders() },
+  })
+  if (response.headers.get('content-type')?.includes('json')) {
+    throw new Error((await response.json()).message || '下载加工申请单失败')
+  }
+  if (!response.ok) throw new Error('下载加工申请单失败')
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = doc.fileName
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 /** 获取数据包列表 GET /api/design/packages?orderId= */

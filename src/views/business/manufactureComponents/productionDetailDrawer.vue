@@ -94,6 +94,12 @@
           <div class="dwd-order-grid__label">期望交付</div>
           <div class="dwd-order-grid__value dwd-order-grid__value--mono">{{ dayjs(detail.expectedDeliveryDate).format('YYYY-MM-DD HH:mm:ss') || '—' }}</div>
 
+          <template v-if="detail.processingApplicationId">
+            <div class="dwd-order-grid__label">申请交付时间</div>
+            <div class="dwd-order-grid__value">{{ detail.processingDeliveryTime?.replace('T', ' ') || '—' }}</div>
+            <div class="dwd-order-grid__label">申请邮寄地址</div>
+            <div class="dwd-order-grid__value">{{ detail.processingPostalAddress || '—' }}</div>
+          </template>
           <div class="dwd-order-grid__label">创建时间</div>
           <div class="dwd-order-grid__value dwd-order-grid__value--mono">{{ dayjs(detail.createTime).format('YYYY-MM-DD HH:mm:ss') || '—' }}</div>
         </div>
@@ -143,13 +149,16 @@
         </section>
 
         <!-- 02 文件下载 -->
-        <section class="form-section" v-if="detail.instructionFile || detail.drawingFile || detail.dataPackageFile || detail.flowCardFile">
+        <section class="form-section" v-if="detail.processingApplicationFile || detail.instructionFile || detail.drawingFile || detail.dataPackageFile || detail.flowCardFile">
           <div class="form-section-header">
             <span class="form-section-num">02</span>
             <span class="form-section-line"></span>
             <span class="form-section-title">文件下载</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px">
+            <processing-document-file v-if="detail.processingApplicationFile"
+              :file="{ ...detail.processingApplicationFile, previewUrl: detail.processingApplicationFile.fileUrl }"
+              :can-download="detail.status !== 9010" />
             <div v-if="detail.instructionFile" class="dwd-file-card">
               <div class="dwd-file-card__icon instruction">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -286,6 +295,7 @@
 import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import dialogModal from '@/components/dialogModal.vue'
+import ProcessingDocumentFile from '../designComponents/processingDocumentFile.vue'
 import FilePreviewDialog from './filePreviewDialog.vue'
 import { getProductionRecordDetail, downloadDesignPackage, batchUpdateUdi, type ProductionRecordDetailVO } from '@/api/production'
 import { statusLabel, statusStyle } from '../statusConfig'
@@ -311,7 +321,7 @@ const editingUdiCode = ref('')
 const savingUdi = ref(false)
 
 const canEditUdi = computed(() => {
-  return detail.value && detail.value.status >= 3020 && detail.value.status !== 9010
+  return detail.value?.orderType === 1 && detail.value.status >= 3020 && detail.value.status !== 9010
 })
 
 
@@ -334,17 +344,17 @@ const PRODUCT_STATUS_TAG: Record<string, string> = {
 }
 const productTagType = (s: string) => (PRODUCT_STATUS_TAG[s] || 'info') as any
 
-watch(() => props.modelValue, async (val) => {
-  if (val && props.id) {
-    loading.value = true
-    try {
-      const res = await getProductionRecordDetail(props.id)
-      detail.value = (res as any).data ?? res
-    } finally {
-      loading.value = false
-    }
-  } else {
-    detail.value = null
+watch(() => [props.modelValue, props.id] as const, async ([open, id], _, onCleanup) => {
+  let current = true
+  onCleanup(() => { current = false })
+  detail.value = null
+  if (!open || !id) return
+  loading.value = true
+  try {
+    const res = await getProductionRecordDetail(id)
+    if (current) detail.value = (res as any).data ?? res
+  } finally {
+    if (current) loading.value = false
   }
 })
 

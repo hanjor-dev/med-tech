@@ -6,7 +6,7 @@
     page-class="inspect-page"
     hero-eyebrow="Quality"
     hero-title="质检管理"
-    hero-desc="对已完成包装的批次进行质量检验，扫码逐个产品质检，生成UDI码，合格后流转至包装。"
+    hero-desc="对待检流转卡逐件质检，合格后转入包装。"
     :stats="stats"
     :filter-inputs="filterInputs"
     :filter-selects="[]"

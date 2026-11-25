@@ -388,6 +388,8 @@
                   </div>
                 </div>
 
+                <processing-document-file v-if="pkg.processingApplication" :file="pkg.processingApplication"
+                  :revision="pkg.processingApplication.revision" />
                 <!-- 版本信息 -->
                 <div v-if="pkg.latestInstruction || pkg.latestDrawings?.length" class="dwd-pkg-versions">
                   <div v-if="pkg.latestInstruction" class="dwd-pkg-ver dwd-pkg-ver--instr">
@@ -611,6 +613,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import ProcessingDocumentFile from '../designComponents/processingDocumentFile.vue'
 import dialogModal from '@/components/dialogModal.vue'
 import { ElTag, ElButton, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
 import { CircleCheckFilled } from '@element-plus/icons-vue'

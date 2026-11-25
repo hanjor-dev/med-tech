@@ -289,6 +289,7 @@ export interface OrderDetailVO extends OrderVO {
   approvalFiles?: ImageFileVO[]
   modelList?: ModelListItem[]
   reports?: DesignReportVO[]
+  /** 订单详情中加工申请单摘要仅返回归档版本。 */
   packageList?: PackageListItem[]
 }
 

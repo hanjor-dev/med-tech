@@ -1,6 +1,6 @@
 <template>
   <list-template ref="listTemplateRef" page-class="design" hero-eyebrow="Designer" hero-title="我的工单"
-    hero-desc="管理设计阶段全部工单，随时查看进度。上传文件、填写打印信息、生成指令单与图纸，直至完成设计。" :stats="stats" :filter-inputs="filterInputs"
+    hero-desc="管理设计工单，上传模型并按订单类型准备生产资料。" :stats="stats" :filter-inputs="filterInputs"
     :filter-selects="filterSelects" :filter-date-ranges="filterDateRanges" :show-filter-reset="false"
     :show-filter-create="false" :hideFilter="false" @filter-input-change="onFilterInputChange"
     @filter-change="onFilterChange" @filter-reset="handleFilterReset">
@@ -384,13 +384,16 @@
   </list-template>
 
   <!-- 工单详情弹窗 -->
-  <design-workorder-detail-dialog v-if="showDetailDialog" v-model="showDetailDialog" :workorder-id="detailWorkorderId"
-    @close="showDetailDialog = false" @refresh="fetchList" />
+  <design-workorder-detail-dialog v-if="showDetailDialog" :refresh-version="detailRevision" v-model="showDetailDialog" :workorder-id="detailWorkorderId"
+    :production-actions="productionActions" @production="openProductionAction" @close="showDetailDialog = false" @refresh="fetchList" />
 
   <!-- v-if="showFileUploadDialog" -->
   <design-file-upload-dialog :key="`${fileUploadOrderId ?? 'design-file-upload'}-${fileUploadMode}-${appendBatchId ?? ''}`" v-model="showFileUploadDialog" :order-id="fileUploadOrderId"
-    :order-code="currentOrderCode || ''" :mode="fileUploadMode" :batch-id="appendBatchId" @refresh="fetchList" @success="fetchList" @next="handleAppendBatchNext" />
+    :order-code="currentOrderCode || ''" :mode="fileUploadMode" :batch-id="appendBatchId" @refresh="fetchList" @success="fetchList" @next="handleUploadNext" />
 
+  <processing-application-dialog v-if="processingOrder" v-model="showProcessing" :order-id="processingOrder.id"
+    :batch-id="processingBatchId" :initial-package-id="processingPackageId" :allow-edit="processingMode === 'edit'" :can-view="hasPermission('design:ProcessingApplicationView')"
+    @saved="handleProcessingSaved" />
   <design-print-info-dialog v-if="showPrintInfoDialog" v-model="showPrintInfoDialog" :order-id="printInfoOrderId" :batch-id="appendBatchId"
     @refresh="fetchList" @success="fetchList" />
 
@@ -433,6 +436,8 @@ import listTemplate from '@/components/listTemplate.vue'
 import dialogModal from '@/components/dialogModal.vue'
 import designWorkorderDetailDialog from './designComponents/designWorkorderDetailDialog.vue'
 import designFileUploadDialog from './designComponents/fileDialog.vue'
+import ProcessingApplicationDialog from './designComponents/processingApplicationDialog.vue'
+import { processingAction, usesProcessingApplication, type ProductionOrder } from './productionBranch'
 import designPrintInfoDialog from './designComponents/designPrintInfoDialog.vue'
 import designDocumentPreviewDialog from './designComponents/designDocumentPreviewDialog.vue'
 import * as QRCode from 'qrcode'
@@ -873,14 +878,26 @@ const hasPermission = (permission: string): boolean => {
   return userInfoStore.hasPermission(permission)
 }
 
+const productionActions = (row: ProductionOrder): ActionItem[] => {
+  if (usesProcessingApplication(row)) {
+    const mode = processingAction(row.status, hasPermission('design:ProcessingApplicationEdit'), hasPermission('design:ProcessingApplicationView'))
+    if (!mode) return []
+    return [{ command: 'processing', label: mode === 'edit' ? '填写加工申请单' : '查看加工申请单', icon: Document }]
+  }
+  if (![1030, 2020, 2030, 3010, 3020, 3030, 3040, 4010, 5010, 5020, 5030, 5040, 5050, 6010, 6020, 6030, 8010].includes(row.status)) return []
+  return [
+    { command: 'printInfo', label: '填写打印信息', icon: Printer, permission: 'design:PrintInfo' },
+    { command: 'printInfoView', label: '指令单和图纸', icon: Document, permission: 'design:DocumentPreview' },
+  ].filter(action => hasPermission(action.permission))
+}
+
 const getRowActions = (row: DesignWorkorderVO): ActionItem[] => {
   const status = row.status
-  const pkgCount = row.packageCount ?? 0
-  const hasPrintInfo = row.hasPrintInfo ?? 0
 
   if (status === 9010) {
     return [
       { command: 'view', label: '查看详情', icon: View, permission: 'design:View' },
+      ...productionActions(row),
       { command: 'dicomInfoView', label: '可视化预览', icon: DataAnalysis, permission: 'design:DicomView' },
       { command: 'stlInfoView', label: '在线标注', icon: Finished, permission: 'design:StlMark' },
     ].filter(action => !action.permission || hasPermission(action.permission))
@@ -901,8 +918,7 @@ const getRowActions = (row: DesignWorkorderVO): ActionItem[] => {
     const actions: ActionItem[] = [
       { command: 'view', label: '查看详情', icon: View, permission: 'design:View' },
       { command: 'upload', label: '上传设计文件', icon: Upload, permission: 'design:Upload' },
-      { command: 'printInfo', label: '填写打印信息', icon: Printer, permission: 'design:PrintInfo' },
-      { command: 'printInfoView', label: '指令单和图纸', icon: Document, permission: 'design:DocumentPreview' }
+      ...productionActions(row)
     ]
     actions.push({ command: 'dicomInfoView', label: '可视化预览', icon: DataAnalysis, permission: 'design:DicomView', divided: true })
     actions.push({ command: 'stlInfoView', label: '在线标注', icon: Finished, permission: 'design:StlMark' })
@@ -925,12 +941,7 @@ const getRowActions = (row: DesignWorkorderVO): ActionItem[] => {
       : isNormalDesignStatus
         ? [{ command: 'upload', label: '上传设计文件', icon: Upload, permission: 'design:Upload' }]
         : []),
-    ...(isAppendStatus || isNormalDesignStatus
-      ? [
-          { command: 'printInfo', label: '填写打印信息', icon: Printer, permission: 'design:PrintInfo' },
-          { command: 'printInfoView', label: '指令单和图纸', icon: Document, permission: 'design:DocumentPreview' },
-        ]
-      : []),
+    ...productionActions(row),
     { command: 'dicomInfoView', label: '可视化预览', icon: DataAnalysis, permission: 'design:DicomView', divided: true },
     { command: 'stlInfoView', label: '在线标注', icon: Finished, permission: 'design:StlMark' },
     { command: 'qrCodeGenerate', label: '生成二维码', icon: Link, permission: 'design:EncodeView' },
@@ -947,6 +958,11 @@ const getRowActions = (row: DesignWorkorderVO): ActionItem[] => {
 
 const showDetailDialog = ref(false)
 const detailWorkorderId = ref<number | null>(null)
+const detailRevision = ref(0)
+const handleProcessingSaved = () => {
+  detailRevision.value++
+  fetchList()
+}
 const showFileUploadDialog = ref(false)
 const fileUploadOrderId = ref<number | null>(null)
 const currentOrderCode = ref<string | null>(null)
@@ -969,7 +985,33 @@ const handleView = (row: DesignWorkorderVO) => {
 
 const appendDesignStatuses = new Set([2020, 2030, 3010, 3020, 3030, 3040, 4010, 5010, 5020, 5030, 5040, 5050, 6010, 6020, 6030, 8010])
 
+const uploadOrder = ref<ProductionOrder | null>(null)
+const processingOrder = ref<ProductionOrder | null>(null)
+const processingBatchId = ref<number | null>(null)
+const processingPackageId = ref<number | null>(null)
+const processingMode = ref<'edit' | 'view'>('view')
+const showProcessing = computed({
+  get: () => !!processingOrder.value,
+  set: (open: boolean) => { if (!open) processingOrder.value = null },
+})
+
+const openProcessing = (row: ProductionOrder, batchId: number | null = null, packageId: number | null = null) => {
+  const mode = processingAction(row.status, hasPermission('design:ProcessingApplicationEdit'), hasPermission('design:ProcessingApplicationView'))
+  if (!mode) return
+  processingMode.value = mode
+  processingBatchId.value = batchId
+  processingPackageId.value = packageId
+  processingOrder.value = row
+}
+
+const openProductionAction = (command: string, row: ProductionOrder) => {
+  if (command === 'processing') openProcessing(row)
+  else if (command === 'printInfo') handlePrintInfo(row)
+  else if (command === 'printInfoView') handleDocumentPreview(row)
+}
+
 const handleFileUpload = async (row: DesignWorkorderVO) => {
+  uploadOrder.value = row
   if (appendDesignStatuses.has(row.status)) {
     if (row.status !== 2020) {
       await handleAppendBatch(row)
@@ -1014,14 +1056,22 @@ const selectActiveAppendBatch = (batches: Array<{ batchId: number; status: strin
     ?? batches.find(batch => batch.status !== 'CANCELLED')
 }
 
-const handleAppendBatchNext = (batchId: number) => {
+const handleUploadNext = (batchId: number | null, packageId: number) => {
+  const row = uploadOrder.value
+  if (!row) return
   showFileUploadDialog.value = false
+  if (usesProcessingApplication(row)) {
+    // 新增包已将追加批次转回设计中，服务端仍逐包裁定是否可写。
+    openProcessing({ ...row, status: 2020 }, batchId, packageId)
+    return
+  }
+  if (!hasPermission('design:PrintInfo')) return
   appendBatchId.value = batchId
   printInfoOrderId.value = fileUploadOrderId.value
   showPrintInfoDialog.value = true
 }
 
-const handlePrintInfo = (row: DesignWorkorderVO) => {
+const handlePrintInfo = (row: ProductionOrder) => {
   fileUploadMode.value = 'NORMAL'
   appendBatchId.value = null
   printInfoOrderId.value = row.id
@@ -1035,7 +1085,7 @@ const handlePrintInfo = (row: DesignWorkorderVO) => {
   }
 }
 
-const handleDocumentPreview = async (row: DesignWorkorderVO) => {
+const handleDocumentPreview = async (row: ProductionOrder) => {
   appendBatchId.value = null
   if (row.status === 2020 || row.status >= 2030) {
     try {
@@ -1135,11 +1185,10 @@ const handleActionCommand = (cmd: string, row: DesignWorkorderVO) => {
     case 'upload':
       handleFileUpload(row)
       break
+    case 'processing':
     case 'printInfo':
-      handlePrintInfo(row)
-      break
     case 'printInfoView':
-      handleDocumentPreview(row)
+      openProductionAction(cmd, row)
       break
     case 'view':
       handleView(row)

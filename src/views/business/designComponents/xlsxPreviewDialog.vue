@@ -28,7 +28,7 @@
             </svg>
             <span>{{ fileName || '电子表格' }}</span>
             <!-- 状态 tag -->
-            <span class="xlsx-preview__status-tag"
+            <span v-if="fileType !== 'processing'" class="xlsx-preview__status-tag"
               :class="isConfirmed ? 'xlsx-preview__status-tag--confirmed' : 'xlsx-preview__status-tag--pending'">
               {{ isConfirmed ? '已确认' : '待确认' }}
             </span>
@@ -67,7 +67,7 @@ const props = defineProps<{
   /** 文件名（工具栏展示） */
   fileName?: string
   /** 文件类型：drawing=图纸，instruction=指令单 */
-  fileType?: 'drawing' | 'instruction'
+  fileType?: 'drawing' | 'instruction' | 'processing'
   /** 工单ID */
   orderId?: number | null
   /** 数据包ID */

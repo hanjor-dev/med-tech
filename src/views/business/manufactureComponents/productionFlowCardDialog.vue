@@ -10,12 +10,12 @@
       <div class="dialog-hero">
         <div>
           <div class="dialog-title">流程卡</div>
-          <div class="dialog-sub">{{ flowCardData.productionNo || flowCardData.packageCode }}</div>
+          <div class="dialog-sub">{{ recordReady ? (flowCardData.productionNo || flowCardData.packageCode) : '加载中' }}</div>
         </div>
       </div>
     </template>
 
-    <div class="flow-card-body">
+    <div v-if="recordReady" class="flow-card-body">
       <!-- 基础信息区 -->
       <div class="fc-base-info">
         <div class="fbi-item">
@@ -153,7 +153,7 @@
           </div>
 
           <div v-if="activeStep !== 'PRINT'" class="fcp-row">
-            <template v-if="activeStep === 'PACK' && props.orderType === 2 && flowCardData.orderStatus < 5050">
+            <template v-if="activeStep === 'PACK' && flowCardData.orderType === 2 && flowCardData.orderStatus < 5050">
               <el-alert title="质检处理中，完成后可开始包装" type="warning" :closable="false" show-icon style="width:100%" />
             </template>
             <el-button v-else type="primary" size="large" @click="handleProcessStart"
@@ -422,6 +422,7 @@ interface FlowCardVO {
   printFinishTime: string
   materialBatchNo: string
   operatorName: string
+  orderType: number | null
   orderStatus: number
   productList: ProductVO[]
 }
@@ -532,14 +533,14 @@ const getCleanModeName = (mode?: string) => {
 // ─────────────────────────────────────────────────────────────────
 // Props / Emit
 // ─────────────────────────────────────────────────────────────────
-const props = defineProps<{ modelValue: boolean; id: number | null; orderType?: number }>()
+const props = defineProps<{ modelValue: boolean; id: number | null }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
   (e: 'success'): void
 }>()
 
 const PROCESS_STEPS = computed(() =>
-  props.orderType === 2
+  flowCardData.orderType === 2
     ? ALL_PROCESS_STEPS.filter(s => NON_MEDICAL_STEPS.includes(s.processType))
     : ALL_PROCESS_STEPS
 )
@@ -566,6 +567,7 @@ const flowCardData = reactive<FlowCardVO>({
   printFinishTime: '',
   materialBatchNo: '',
   operatorName: '',
+  orderType: null,
   orderStatus: 3010,
   productList: [],
 })
@@ -693,7 +695,10 @@ const API_STATUS_TO_NUM: Record<string, ProcessStatus> = {
 // ─────────────────────────────────────────────────────────────────
 // 加载数据
 // ─────────────────────────────────────────────────────────────────
+const recordReady = ref(false)
+let loadGeneration = 0
 const loadData = async () => {
+  const generation = ++loadGeneration
   if (!props.id) return
   const id = props.id
 
@@ -703,6 +708,7 @@ const loadData = async () => {
     getProcessParamsConfig(),
   ])
 
+  if (generation !== loadGeneration || !props.modelValue || props.id !== id) return
   const detail = (detailRes as any).data ?? detailRes
   const processes: any[] = (processRes as any).data ?? processRes
   processParamsConfig.value = (paramsRes as any).data ?? paramsRes
@@ -717,6 +723,7 @@ const loadData = async () => {
     printFinishTime: detail.printFinishTime || '',
     materialBatchNo: detail.materialBatchNo || '',
     operatorName: detail.producerName || '',
+    orderType: detail.orderType,
     orderStatus: detail.status,
     productList: (detail.products || []).map((p: any) => ({
       id: p.id,
@@ -769,11 +776,12 @@ const loadData = async () => {
 
   const firstNonDone = PROCESS_STEPS.value.find(s => !isStepDone(s.processType))
   if (firstNonDone?.processType === 'PACK') {
-    activeStep.value = (props.orderType === 2 || detail.status >= 5050) ? 'PACK' : 'ULTRASONIC'
+    activeStep.value = (flowCardData.orderType === 2 || detail.status >= 5050) ? 'PACK' : 'ULTRASONIC'
   } else {
     activeStep.value = firstNonDone?.processType || PROCESS_STEPS.value.at(-1)!.processType
   }
 
+  recordReady.value = true
   // 预加载当前激活工序的设备列表
   await loadDevicesForStep(activeStep.value)
 }
@@ -886,9 +894,11 @@ const handleFlowCardClose = () => {
   emit('success')
 }
 
-watch(() => props.modelValue, (val) => {
-  if (val) loadData().catch(() => ElMessage.error('加载流程卡失败'))
-})
+watch(() => [props.modelValue, props.id], () => {
+  ++loadGeneration
+  recordReady.value = false
+  if (props.modelValue) loadData().catch(() => ElMessage.error('加载流程卡失败'))
+}, { immediate: true })
 watch(visible, (val) => { if (!val) emit('update:modelValue', false) })
 </script>
 

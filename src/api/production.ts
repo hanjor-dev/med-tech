@@ -87,6 +87,7 @@ export interface ProductionRecordStatisticsVO {
 }
 
 interface FileInfo {
+  id?: string
   fileName?: string
   fileUrl: string
   downloadUrl?: string
@@ -104,6 +105,10 @@ export interface ProductionRecordDetailVO extends ProductionRecordVO {
   isPostal: number
   expectedDeliveryDate: string
   designPackageId?: number
+  processingApplicationId?: number | null
+  processingApplicationFile?: FileInfo | null
+  processingPostalAddress?: string | null
+  processingDeliveryTime?: string | null
   instructionFile?: FileInfo
   drawingFile?: FileInfo
   dataPackageFile?: FileInfo
@@ -244,7 +249,7 @@ export const getFlowCard = (id: number) =>
 // ── 流转卡详情（真实接口） ────────────────────────────────────────────────────
 
 export const scanRecord = (recordNo: string) =>
-  $axios.get<ProductionRecordDetailVO>('/production/record/scan', { params: { recordNo } })
+  $axios.get<unknown, ProductionRecordDetailVO>('/production/record/scan', { params: { recordNo } })
 
 export const getProcessList = (recordId: number) =>
   $axios.get<ProcessStepVO[]>(`/production/process/${recordId}/list`)

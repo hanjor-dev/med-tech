@@ -105,7 +105,7 @@
                 <div style="display:flex;align-items:center;gap:8px;justify-content:center">
                   <span>{{ row.udiCode || '—' }}</span>
                   <el-button
-                    v-if="row.recordStatus >= 3020 && row.recordStatus !== 9010"
+                    v-if="row.orderType === 1 && row.recordStatus >= 3020 && row.recordStatus !== 9010"
                     size="small"
                     :icon="Edit"
                     circle
@@ -222,7 +222,7 @@
 
   <production-detail-drawer v-model="detailDrawerVisible" :id="detailId" @close="fetchList" />
   <device-config-dialog v-model="deviceConfigVisible" :id="deviceConfigId" @success="handleDeviceConfigSuccess" />
-  <production-flow-card-dialog v-model="flowCardVisible" :id="flowCardId" :order-type="flowCardOrderType" @success="handleDeviceConfigSuccess" />
+  <production-flow-card-dialog :key="flowCardId ?? 'flow-card'" v-model="flowCardVisible" :id="flowCardId" @success="handleDeviceConfigSuccess" />
   <product-export-dialog v-model="exportDialogVisible" />
 
   <el-dialog v-model="qrCodeVisible" title="流转二维码" width="400px" align-center :close-on-click-modal="false">
@@ -308,7 +308,7 @@ import ProductionDetailDrawer from './manufactureComponents/productionDetailDraw
 import DeviceConfigDialog from './manufactureComponents/deviceConfigDialog.vue'
 import ProductionFlowCardDialog from './manufactureComponents/productionFlowCardDialog.vue'
 import ProductExportDialog from './manufactureComponents/productExportDialog.vue'
-import { getProductionRecordList, getProductionRecordStatistics, getProductionProductList, generateFlowCardExcel, productionColumnConfigGet, productionColumnConfigSave, batchUpdateUdi, type ProductionRecordVO, type ProductionRecordStatisticsVO, type ProductionProductDetailVO, type ProductionColumnItem } from '@/api/production'
+import { scanRecord, getProductionRecordDetail, getProductionRecordList, getProductionRecordStatistics, getProductionProductList, generateFlowCardExcel, productionColumnConfigGet, productionColumnConfigSave, batchUpdateUdi, type ProductionRecordVO, type ProductionRecordStatisticsVO, type ProductionProductDetailVO, type ProductionColumnItem } from '@/api/production'
 import { statusLabel, statusStyle } from './statusConfig'
 import { useUserInfo } from '@/stores/userInfo'
 import { formatDateTime } from '@/utils/format'
@@ -499,18 +499,26 @@ const deviceConfigVisible = ref(false)
 const deviceConfigId = ref<number | null>(null)
 const flowCardVisible = ref(false)
 const flowCardId = ref<number | null>(null)
-const flowCardOrderType = ref<number>(1)
 const qrCodeVisible = ref(false)
 const qrCodeSrc = ref('')
 const qrCodeRow = ref<ProductionRecordVO | null>(null)
 const exportDialogVisible = ref(false)
 
 const scanInput = ref('')
+let scanRequest = 0
+const openScannedCard = async (code: string) => {
+  const request = ++scanRequest
+  if (!code) return
+  try {
+    const id = /^\d+$/.test(code) ? Number(code) : (await scanRecord(code)).id
+    if (request === scanRequest && id) {
+      flowCardId.value = id
+      flowCardVisible.value = true
+    }
+  } catch { /* 请求错误由拦截器显示 */ }
+}
 const handleScanFlowCard = () => {
-  const id = parseInt(scanInput.value.trim())
-  if (!id) return
-  flowCardId.value = id
-  flowCardVisible.value = true
+  openScannedCard(scanInput.value.trim())
   scanInput.value = ''
 }
 
@@ -523,7 +531,6 @@ const handleCommand = (cmd: string, row: ProductionRecordVO) => {
     deviceConfigVisible.value = true
   } else if (cmd === 'flowcard') {
     flowCardId.value = row.id
-    flowCardOrderType.value = row.orderType ?? 1
     flowCardVisible.value = true
   } else if (cmd === 'qrcode') {
     qrCodeSrc.value = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${row.id}`
@@ -637,8 +644,7 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
   const target = e.target as HTMLElement
   if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
   if (e.key === 'Enter') {
-    const id = parseInt(scanBuffer.trim())
-    if (id) { flowCardId.value = id; flowCardVisible.value = true }
+    openScannedCard(scanBuffer.trim())
     scanBuffer = ''
     return
   }
@@ -659,9 +665,19 @@ watch(() => route.query.detailId, async (queryDetailId) => {
     // 等待 DOM 更新，确保子组件已挂载
     await nextTick()
 
-    // 构造一个临时的 row 对象用于调用 handleCommand
-    const tempRow = { id, orderType: 1 } as ProductionRecordVO
-    handleCommand(action, tempRow)
+    if (action === 'flowcard') {
+      flowCardId.value = id
+      flowCardVisible.value = true
+    } else if (action === 'config') {
+      deviceConfigId.value = id
+      deviceConfigVisible.value = true
+    } else if (action === 'excel' || action === 'qrcode') {
+      const record = await getProductionRecordDetail(id) as unknown as ProductionRecordVO
+      handleCommand(action, record)
+    } else {
+      detailId.value = id
+      detailDrawerVisible.value = true
+    }
 
     // 再次等待，确保状态更新完成
     await nextTick()

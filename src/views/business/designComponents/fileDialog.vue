@@ -66,7 +66,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
   (e: 'success'): void
-  (e: 'next', batchId: number): void
+  (e: 'next', batchId: number | null, packageId: number): void
 }>()
 
 const visible = computed({
@@ -386,7 +386,7 @@ const handleConfirm = async () => {
     // 只有本次真正新增了设计数据包，才需要继续填写该追加批次的打印信息。
     // 追加入口也支持只维护模型/报告，此时不应把用户带到打印信息页面。
     const packageFiles: FileItem[] = fm['printPackage'] || []
-    const hasNewPackage = packageFiles.some(f =>
+    const newPackage = packageFiles.find(f =>
       f.status === 'success' && !f.isExisting && f.fileId,
     )
     // 关联本次新上传的可视化模型
@@ -427,8 +427,8 @@ const handleConfirm = async () => {
 
     ElMessage.success('设计文件上传成功')
     emit('success')
-    if (props.mode === 'APPEND_BATCH' && props.batchId && hasNewPackage) {
-      emit('next', props.batchId)
+    if (newPackage?.fileId) {
+      emit('next', props.batchId ?? null, Number(newPackage.fileId))
     }
     emit('update:modelValue', false)
   } catch (err: any) {

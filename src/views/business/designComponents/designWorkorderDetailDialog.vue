@@ -284,6 +284,9 @@
                     <span v-if="pkg.batchId" class="dwd-pkg-card__append-badge">追加</span>
                   </div>
                   <div class="dwd-pkg-card__tags">
+                    <el-tag size="small" effect="light" v-if="usesProcessingApplication(workorder)">
+                      {{ pkg.processingApplication ? '加工申请已归档' : pkg.printInfoCompleted ? '加工资料已填' : '加工资料待补充' }}
+                    </el-tag>
                     <el-tag size="small" effect="light" v-if="pkg.latestInstruction">指令单</el-tag>
                     <el-tag size="small" type="primary" effect="light" v-if="pkg.latestDrawings?.length">图纸</el-tag>
                     <span class="dwd-pkg-card__file-count">{{ pkg.fileCount }} 个文件</span>
@@ -316,6 +319,8 @@
                   </div>
                 </div>
 
+                <processing-document-file v-if="pkg.processingApplication" :file="pkg.processingApplication"
+                  :revision="pkg.processingApplication.revision" />
                 <!-- 版本信息 -->
                 <div v-if="pkg.latestInstruction || pkg.latestDrawings?.length" class="dwd-pkg-versions">
                   <div v-if="pkg.latestInstruction" class="dwd-pkg-ver dwd-pkg-ver--instr">
@@ -552,6 +557,11 @@
         <div class="maad-action-btn maad-action-submit" v-if="workorder?.submitCheck.canSubmit && workorder?.status !== 2040" :class="{ 'is-loading': submitLoading }" @click="handleSubmitCheck" v-permission="'design:SubmitCheck'">
           <span class="maad-action-label">提交设计审核</span>
         </div> -->
+        <el-alert v-if="completeError" type="error" :title="completeError" :closable="false" />
+        <template v-if="workorder">
+          <el-button v-for="action in productionActions(workorder)" :key="action.command"
+            @click="emit('production', action.command, workorder)">{{ action.label }}</el-button>
+        </template>
         <el-button type="primary" @click="handleCompleteDesign" :loading="completingDesign"
           v-if="workorder?.status === 2020" v-permission="'design:Complete'">完成设计</el-button>
         <el-button type="primary" @click="handleStartDesign" :loading="startingDesign"
@@ -615,6 +625,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import ProcessingDocumentFile from './processingDocumentFile.vue'
 import dialogModal from '@/components/dialogModal.vue'
 import { ElTag, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -623,6 +634,7 @@ import {
 } from '@element-plus/icons-vue'
 import { designWorkorderDetail, designWorkorderStart, designWorkorderCompleteDesign, designWorkorderAuditPass, designWorkorderAuditReject, designWorkorderSubmitDesign, assignmentHistory, designWorkorderSaveDesignerRemark, type DesignWorkorderDetailVO, type AssignmentHistoryItem } from '@/api/design'
 import { Session } from '@/utils/storage'
+import { usesProcessingApplication, type ProductionOrder } from '../productionBranch'
 import dayjs from 'dayjs'
 
 defineOptions({ name: 'DesignWorkorderDetailDialog' })
@@ -630,10 +642,13 @@ defineOptions({ name: 'DesignWorkorderDetailDialog' })
 const props = defineProps<{
   modelValue: boolean
   workorderId: number | null
+  refreshVersion: number
+  productionActions: (row: ProductionOrder) => { command: string; label: string }[]
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
+  (e: 'production', command: string, row: ProductionOrder): void
   (e: 'close'): void
   (e: 'refresh'): void
 }>()
@@ -700,7 +715,7 @@ const openHistory = async () => {
   }
 }
 
-watch(() => [props.modelValue, props.workorderId] as const, async ([val, id]) => {
+watch(() => [props.modelValue, props.workorderId, props.refreshVersion] as const, async ([val, id]) => {
   if (val && id) {
     loading.value = true
     workorder.value = null
@@ -733,7 +748,9 @@ const handleStartDesign = async () => {
   }
 }
 
+const completeError = ref('')
 const handleCompleteDesign = async () => {
+  completeError.value = ''
   if (!workorder.value) return
   try {
     completingDesign.value = true
@@ -741,7 +758,8 @@ const handleCompleteDesign = async () => {
     ElMessage.success('设计已完成')
     visible.value = false
     emit('refresh')
-  } catch {
+  } catch (failure) {
+    completeError.value = failure instanceof Error ? failure.message : String(failure || '完成设计失败')
   } finally {
     completingDesign.value = false
   }
