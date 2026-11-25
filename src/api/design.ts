@@ -513,20 +513,30 @@ export async function designDrawingVersions(orderId: number, packageId: number, 
  * 查询可视化模型列表
  * GET /api/design/models?orderId={orderId}
  */
-export async function designModelList(orderId: number): Promise<ModelListItem[]> {
-  // $axios interceptor unwraps res.data on code===200, so res is already the array
-  const res: any = await $axios(`/design/models?orderId=${orderId}`)
-  return Array.isArray(res) ? res : (res?.records ?? res?.list ?? [])
+interface DesignModelListResult {
+  data: ModelListItem[]
+  remark?: string | null
+}
+
+export async function designModelList(orderId: number): Promise<DesignModelListResult> {
+  return $axios<DesignModelListResult, DesignModelListResult>('/design/models', {
+    params: { orderId },
+    keepResponseEnvelope: true,
+  })
+}
+
+export async function updateVisualModelRemark(orderId: number, remark: string): Promise<void> {
+  await $axios.put('/design/models/remark', { orderId, remark })
 }
 
 /**
  * 关联可视化模型（上传后调用，将 fileIds 与 orderId 绑定）
  * POST /api/design/models/link
  */
-export async function designModelLink(orderId: number, fileIds: string[]): Promise<void> {
-  await $axios('/design/models/link', {
+export async function designModelLink(orderId: number, fileIds: string[], remark?: string): Promise<ModelListItem[]> {
+  return $axios<ModelListItem[], ModelListItem[]>('/design/models/link', {
     method: 'post',
-    data: { orderId, fileIds },
+    data: { orderId, fileIds, remark },
   })
 }
 

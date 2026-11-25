@@ -528,8 +528,8 @@ export async function orderPageQuery(params: OrderPageQuery): Promise<OrderPageV
  * 查询订单详情
  * GET /order/{id}
  */
-export async function orderDetail(id: number): Promise<OrderDetailVO> {
-  const res: any = await $axios(`/order/${id}`, { method: 'get' })
+export async function orderDetail(id: number | string, localErrorHandling = false): Promise<OrderDetailVO> {
+  const res: any = await $axios(`/order/${encodeURIComponent(id)}`, { method: 'get', localErrorHandling })
   return res as OrderDetailVO
 }
 

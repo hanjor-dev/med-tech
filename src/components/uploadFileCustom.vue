@@ -864,6 +864,7 @@ defineExpose({ fileMap, getFileIdsByType, uploading, handleConfirm, submitting }
               </div>
             </div>
           </div>
+          <slot :name="config.type + '-footer'" />
         </div>
       </div>
     </main>

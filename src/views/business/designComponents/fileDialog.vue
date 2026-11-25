@@ -2,10 +2,19 @@
   <dialog-modal v-model="visible" title="上传设计文件" :subtitle="subtitle" :width="width" :show-footer="true"
     @modal-close="handleClose">
     <uploadFileCustom
+      :key="orderId ?? undefined"
       ref="uploadRef"
       :types="fileTypes"
       :extra="uploadExtra"
-    />
+    >
+      <template #model-footer>
+        <div style="margin-top: 12px">
+          <label for="design-model-remark">备注</label>
+          <el-input id="design-model-remark" v-model="modelRemark" aria-label="备注" placeholder="填写可视化模型整体备注（选填）"
+            maxlength="500" show-word-limit :disabled="submitting || !remarkLoaded" />
+        </div>
+      </template>
+    </uploadFileCustom>
 
     <template #footer-btn>
       <el-button @click="handleClose" class="btn btn-ghost">取消</el-button>
@@ -28,6 +37,7 @@ import {
   designPackageList,
   designModelList,
   designModelLink,
+  updateVisualModelRemark,
   designReportLink,
   designReportGet,
   designPackageDelete,
@@ -70,6 +80,11 @@ const width = '960px'
 // ─────────────────────────────────────────────────────────────────
 // Upload ref
 // ─────────────────────────────────────────────────────────────────
+const modelRemark = ref('')
+const savedModelRemark = ref('')
+const remarkLoaded = ref(false)
+let modelListRequest: symbol | undefined
+const remarkChanged = computed(() => remarkLoaded.value && modelRemark.value.trim() !== savedModelRemark.value)
 const uploadRef = ref<InstanceType<typeof uploadFileCustom> | null>(null)
 
 // ─────────────────────────────────────────────────────────────────
@@ -160,11 +175,13 @@ const buildPackageNameRule = (orderCode: string | undefined) => {
 }
 
 // 监听弹框打开，加载配置
-watch(visible, (val) => {
-  if (val) {
-    loadDesignConfig()
-  }
-})
+watch([visible, () => props.orderId], ([open, orderId]) => {
+  modelListRequest = undefined
+  remarkLoaded.value = false
+  modelRemark.value = ''
+  savedModelRemark.value = ''
+  if (open && orderId) void loadDesignConfig()
+}, { immediate: true })
 
 const fileTypes = computed<FileTypeConfig[]>(() => [
   {
@@ -252,9 +269,15 @@ const fileTypes = computed<FileTypeConfig[]>(() => [
     maxSizeMb: modelMaxSizeMb.value,
     initExisting: async () => {
       if (!props.orderId) return []
-      const list = await designModelList(props.orderId)
-      console.log(list, 'list')
-      return list.map((m: ModelListItem): FileItem  => ({
+      const request = Symbol()
+      modelListRequest = request
+      const { data, remark } = await designModelList(props.orderId)
+      if (modelListRequest !== request || !visible.value) return []
+
+      savedModelRemark.value = remark ?? ''
+      modelRemark.value = savedModelRemark.value
+      remarkLoaded.value = true
+      return data.map((m: ModelListItem): FileItem => ({
         uid: -m.id,
         id: m.id,
         name: m.fileName,
@@ -348,7 +371,7 @@ const hasAnyFile = computed(() => {
 const handleConfirm = async () => {
   if (!uploadRef.value) return
 
-  if (!hasAnyFile.value) {
+  if (!hasAnyFile.value && !remarkChanged.value) {
     emit('update:modelValue', false)
     return
   }
@@ -371,9 +394,21 @@ const handleConfirm = async () => {
     const newModelFileIds = modelFiles
       .filter(f => f.status === 'success' && !f.isExisting && f.fileId)
       .map(f => String(f.fileId))
+    const remark = remarkChanged.value ? modelRemark.value.trim() : undefined
     if (props.orderId && newModelFileIds.length > 0) {
-      await designModelLink(props.orderId, newModelFileIds)
+      const linkedModels = await designModelLink(props.orderId, newModelFileIds, remark)
+      const linkedByFileId = new Map(linkedModels.map(model => [String(model.fileId), model]))
+      for (const file of modelFiles) {
+        const model = linkedByFileId.get(String(file.fileId))
+        if (!model) continue
+        file.id = model.id
+        file.url = model.fileUrl
+        file.isExisting = true
+      }
+    } else if (props.orderId && remark !== undefined) {
+      await updateVisualModelRemark(props.orderId, remark)
     }
+    if (remark !== undefined) savedModelRemark.value = remark
 
     // 追加关联本次新上传的设计报告，保留已有报告
     const reportFiles: FileItem[] = fm['designReport'] || []
@@ -381,7 +416,13 @@ const handleConfirm = async () => {
       .filter(f => f.status === 'success' && !f.isExisting && f.fileId)
       .map(f => String(f.fileId))
     if (props.orderId && newReportFileIds.length > 0) {
-      await designReportLink(props.orderId, newReportFileIds)
+      try {
+        await designReportLink(props.orderId, newReportFileIds)
+      } catch (error) {
+        if (remark === undefined) throw error
+        ElMessage.error('备注已保存，设计报告关联失败')
+        return
+      }
     }
 
     ElMessage.success('设计文件上传成功')
