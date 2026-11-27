@@ -13,13 +13,15 @@
           </div>
           <el-row :gutter="24">
             <el-col :span="8">
-              <el-form-item label="订单类型" prop="orderType">
+              <el-form-item label="订单类型" prop="orderType" :class="{ 'order-type-with-udi': showUdiOption }">
                 <el-select v-model="form.orderType" placeholder="请选择订单类型" style="width: 100%"
                   :disabled="!canEditOrderTypeInModify">
                   <el-option v-if="qualificationType === 1" label="医疗器械" :value="1" />
                   <el-option label="非医疗器械" :value="2" />
                 </el-select>
               </el-form-item>
+              <el-checkbox v-if="showUdiOption" v-model="form.provideUdi" class="udi-option"
+                :true-value="1" :false-value="0" :disabled="!canEditBasicInfo">提供UDI码</el-checkbox>
             </el-col>
             <el-col :span="8">
               <el-form-item label="是否需要实体交付" prop="needsPhysicalDelivery">
@@ -223,17 +225,17 @@
     <template #footer-btn>
       <el-button class="btn btn-ghost" @click="visible = false">取消</el-button>
       <el-button class="btn btn-ghost" v-if="!isModifyMode" @click="handleSaveDraft"
-        :loading="savingDraft">保存为草稿</el-button>
+        :loading="savingDraft" :disabled="!formInitialized">保存为草稿</el-button>
       <el-button class="btn btn-primary" v-if="!isModifyMode" type="primary" @click="handleSaveAndUpload"
-        :loading="saving">
+        :loading="saving" :disabled="!formInitialized">
         下一步，上传附件
       </el-button>
       <el-button class="btn btn-primary" v-if="isModifyMode && canEditFiles && (isPhaseOrder || isPhaseDesign || isAdminOrCompanyAdmin)" type="primary"
-        @click="handleModifyNext" :loading="saving">
+        @click="handleModifyNext" :loading="saving" :disabled="!formInitialized">
         下一步，修改附件
       </el-button>
       <el-button class="btn btn-primary" v-if="isModifyMode && canEditFiles && (isPhaseOrder || isPhaseDesign || isAdminOrCompanyAdmin)" type="primary" @click="handleSaveModified"
-        :loading="saving">
+        :loading="saving" :disabled="!formInitialized">
         确认修改
       </el-button>
     </template>
@@ -457,6 +459,7 @@ interface OrderItemForm {
 
 interface OrderFormData {
   orderType: number
+  provideUdi: 0 | 1
   needsPhysicalDelivery: number
   businessType?: string
   orgId: number
@@ -488,6 +491,7 @@ const originalOrderData = ref<any>(null)
 
 const getDefaultForm = (): OrderFormData => ({
   orderType: 1,
+  provideUdi: 0,
   needsPhysicalDelivery: 1,
   businessType: undefined,
   orgId: (userInfo.userInfos.orgId as number) || 0,
@@ -913,6 +917,7 @@ const buildModifyFullPayload = (): OrderModifyFullDTO => {
   console.log(order.imageDataFiles)
   return {
     orderType: form.orderType,
+    provideUdi: form.orderType === 1 ? form.provideUdi : 0,
     needsPhysicalDelivery: form.needsPhysicalDelivery,
     businessType: form.businessType,
     hospitalId: form.hospitalId,
@@ -1058,6 +1063,7 @@ const validateForm = async (): Promise<boolean> => {
 const initFormFromDraft = (draft: DraftDetailVO) => {
   Object.assign(form, getDefaultForm(), {
     ...draft,
+    provideUdi: draft.orderType === 1 && draft.provideUdi === 1 ? 1 : 0,
     hospitalDeptId: draft.hospitalDeptId ?? undefined,
     hospitalName: draft.hospitalName || '',
     hospitalDeptName: draft.hospitalDeptName || '',
@@ -1101,6 +1107,7 @@ const initFormFromDraftDTO = (data: DraftDTO) => {
   const deptId = raw.hospitalDeptId ?? raw.deptId
   Object.assign(form, getDefaultForm(), {
     ...data,
+    provideUdi: data.orderType === 1 && data.provideUdi === 1 ? 1 : 0,
     hospitalId: raw.hospitalId != null ? Number(raw.hospitalId) : undefined,
     hospitalDeptId: deptId != null ? Number(deptId) : undefined,
     hospitalDeptName: raw.hospitalDeptName ?? raw.deptName ?? '',
@@ -1136,6 +1143,7 @@ const initFormFromOrder = (order: any) => {
   const deptId = order.hospitalDeptId ?? order.deptId
   Object.assign(form, getDefaultForm(), {
     ...order,
+    provideUdi: order.orderType === 1 && order.provideUdi === 1 ? 1 : 0,
     hospitalDeptId: deptId != null ? Number(deptId) : undefined,
     hospitalDeptName: order.hospitalDeptName ?? order.deptName ?? '',
     hospitalId: order.hospitalId != null ? Number(order.hospitalId) : undefined,
@@ -1182,6 +1190,7 @@ const resetForm = () => {
   Object.assign(form, getDefaultForm())
   selectedDoctorName.value = ''
   originalOrderData.value = null
+  qualificationType.value = null
   deptOptions.value = []
   resetAddForm()
   isDealer.value = false
@@ -1191,7 +1200,16 @@ const resetForm = () => {
 // ============================================================
 // 监听
 // ============================================================
-watch(visible, async (val) => {
+const formInitialized = ref(false)
+const showUdiOption = computed(() => formInitialized.value && form.orderType === 1 &&
+  (qualificationType.value === 1 || isModifyMode.value || !!props.draft))
+watch(() => form.orderType, type => {
+  if (type !== 1) form.provideUdi = 0
+})
+watch(visible, async (val, _, onCleanup) => {
+  let active = true
+  onCleanup(() => { active = false })
+  formInitialized.value = false
   if (val) {
     if (props.restoredFormData && !props.reCreate) {
       // 上一步返回：直接用恢复的数据，不走新建/草稿逻辑
@@ -1199,25 +1217,30 @@ watch(visible, async (val) => {
       await Promise.all([loadDictData(), loadHospitals(), loadDeptOptions()])
     } else if(props.restoredFormData && props.reCreate){
       await Promise.all([loadDictData(), loadHospitals(), loadDeptOptions()])
+      if (!active) return
       qualificationType.value = props.restoredFormData.orderType ?? null
       initFormFromOrder(props.restoredFormData)
     } else if (isModifyMode.value && props.orderData) {
       // 修改模式：先加载字典和医院，再初始化表单
       await Promise.all([loadDictData(), loadHospitals(), loadDeptOptions()])
+      if (!active) return
       qualificationType.value = props.orderData.orderType ?? null
       initFormFromOrder(props.orderData)
     } else if (props.draft) {
       await Promise.all([loadDictData(), loadHospitals(), loadDeptOptions()])
+      if (!active) return
       qualificationType.value = props.draft.orderType ?? null
       initFormFromDraft(props.draft)
     } else {
       resetForm()
       await Promise.all([loadDictData(), loadHospitals(), loadDeptOptions()])
+      if (!active) return
       // 根据机构资质类型自动设置订单类型
       const orgId = userInfo.userInfos.orgId as number
       if (orgId) {
         try {
           const orgRes = await orgDetail(orgId) as any
+          if (!active) return
           qualificationType.value = orgRes?.qualificationType ?? null
           isDealer.value = orgRes?.orgType === '1.2'
           isServiceProvider.value = orgRes?.orgType === '1.4'
@@ -1229,6 +1252,7 @@ watch(visible, async (val) => {
         }
       }
     }
+    if (active) formInitialized.value = true
   }
 })
 
@@ -1609,5 +1633,33 @@ watch(() => form.expectedDeliveryDate, (newVal) => {
   font-size: 12px;
   color: #64748b;
   margin-left: auto;
+}
+.order-type-with-udi { margin-bottom: 0; }
+
+.udi-option {
+  --el-checkbox-text-color: #941c35;
+  --el-checkbox-checked-text-color: #941c35;
+  --el-checkbox-checked-bg-color: #ac2540;
+  --el-checkbox-checked-input-border-color: #ac2540;
+  --el-checkbox-input-border-color-hover: #ac2540;
+  --el-checkbox-input-border: 1px solid #ab7680;
+  --el-checkbox-font-weight: 600;
+  height: 28px;
+  margin: 6px 0;
+  padding: 0 9px;
+  border: 1px solid #ebc7ce;
+  border-radius: 5px;
+  background: #fff6f7;
+
+  &:hover:not(.is-disabled),
+  &.is-checked:not(.is-disabled) {
+    border-color: #c77b8a;
+    background: #fce8ec;
+  }
+
+  &.is-disabled {
+    border-color: var(--el-border-color-lighter);
+    background: var(--el-fill-color-light);
+  }
 }
 </style>

@@ -28,6 +28,7 @@ export interface WarehouseListProductVO {
 }
 
 export interface WarehouseRecordVO {
+  provideUdi?: number | null
   id: number
   recordNo: string
   orderId: number
@@ -104,6 +105,7 @@ export interface WarehouseProductVO {
 }
 
 export interface WarehouseDetailVO {
+  provideUdi?: number | null
   id: number
   recordNo: string
   orderId: number

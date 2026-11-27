@@ -9,7 +9,7 @@
     <template #header>
       <div class="dialog-hero">
         <div>
-          <div class="dialog-title">流程卡</div>
+          <div class="dialog-title">流程卡 <UdiBadge v-if="recordReady" :provide-udi="flowCardData.provideUdi" /></div>
           <div class="dialog-sub">{{ recordReady ? (flowCardData.productionNo || flowCardData.packageCode) : '加载中' }}</div>
         </div>
       </div>
@@ -303,6 +303,7 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, VideoPlay, Monitor, Clock, Setting, WarningFilled, CloseBold, Finished } from '@element-plus/icons-vue'
@@ -422,6 +423,7 @@ interface FlowCardVO {
   printFinishTime: string
   materialBatchNo: string
   operatorName: string
+  provideUdi: number
   orderType: number | null
   orderStatus: number
   productList: ProductVO[]
@@ -567,6 +569,7 @@ const flowCardData = reactive<FlowCardVO>({
   printFinishTime: '',
   materialBatchNo: '',
   operatorName: '',
+  provideUdi: 0,
   orderType: null,
   orderStatus: 3010,
   productList: [],
@@ -723,6 +726,7 @@ const loadData = async () => {
     printFinishTime: detail.printFinishTime || '',
     materialBatchNo: detail.materialBatchNo || '',
     operatorName: detail.producerName || '',
+    provideUdi: detail.provideUdi ?? 0,
     orderType: detail.orderType,
     orderStatus: detail.status,
     productList: (detail.products || []).map((p: any) => ({

@@ -19,7 +19,9 @@
         @mousemove="onTableScrollMouseMove" @mouseup="onTableScrollMouseUp" @mouseleave="onTableScrollMouseLeave">
         <el-table :data="orderList" v-loading="loading" @sort-change="handleTableSortChange" stripe ref="orderTableRef"
           :header-cell-style="{ background: '#f9fafb' }" :row-class-name="tableRowClass" height="100%">
-          <el-table-column type="index" label="序号" width="55" align="center" fixed />
+          <el-table-column type="index" label="序号" width="72" align="center" fixed>
+            <template #default="scope"><UdiBadge :provide-udi="scope.row.provideUdi" :index="scope.$index + 1" /></template>
+          </el-table-column>
           <!-- 动态列 -->
           <template v-for="col in visibleColumns" :key="col.field">
             <!-- 订单编号-->
@@ -570,7 +572,7 @@
 
   <!-- 新建订单弹窗 -->
   <order-create-dialog v-model="showCreateDialog" @success="handleCreateSuccess"
-    @save-and-upload="onCreateSaveAndUpload" :restored-form-data="prevFormData" :re-create="true" />
+    @save-and-upload="onCreateSaveAndUpload" :restored-form-data="prevFormData" :re-create="recreatingOrder" />
 
   <!-- 新建订单 - 文件上传 -->
   <FileUploadDialog v-model="showFileUploadDialog" :draft-id="uploadingDraftId" :order-form-data="uploadingFormData"
@@ -706,6 +708,7 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ElTable } from 'element-plus'
@@ -1027,8 +1030,11 @@ const showFileUploadDialog = ref(false)
 const uploadingDraftId = ref<number | null>(null)
 const uploadingFormData = ref<DraftDTO | null>(null)
 const prevFormData = ref<DraftDTO | null>(null)
+const recreatingOrder = ref(false)
 
 const handleCreate = () => {
+  recreatingOrder.value = false
+  uploadingDraftId.value = null
   prevFormData.value = null
   showCreateDialog.value = true
 }
@@ -1036,6 +1042,7 @@ const handleCreate = () => {
 const buildRestoredOrderForm = (row: OrderVO): DraftDTO => {
   return {
     orderType: row.orderType,
+    provideUdi: row.provideUdi ?? 0,
     needsPhysicalDelivery: row.needsPhysicalDelivery,
     businessType: row.businessType,
     orgId: row.orgId,
@@ -1065,9 +1072,10 @@ const handleRecreateOrder = async (row: OrderVO) => {
   try {
     const detail = (await orderDetail(row.id)) as any
     const source = detail || row
+    recreatingOrder.value = true
+    uploadingDraftId.value = null
     prevFormData.value = buildRestoredOrderForm(source)
     showCreateDialog.value = true
-    // nextTick(() => { prevFormData.value = null })
   } catch {
     ElMessage.error('加载订单详情失败，请重试')
   }
@@ -1094,11 +1102,10 @@ const onUploadSuccess = () => {
 const onUploadPrev = (payload: { formData: DraftDTO | null; draftId: number | null }) => {
   showFileUploadDialog.value = false
   if (payload.formData || payload.draftId) {
+    recreatingOrder.value = false
     prevFormData.value = payload.formData
     uploadingDraftId.value = payload.draftId
     showCreateDialog.value = true
-    // 弹窗打开后清除恢复数据，防止下次新建时误用
-    nextTick(() => { prevFormData.value = null })
   }
 }
 

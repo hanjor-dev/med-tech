@@ -104,7 +104,7 @@ const needSubmitModifyApply = computed(() => {
   }
   return false
 })
-const showPrevButton = computed(() => isModifyMode.value && !!props.orderFormData)
+const showPrevButton = computed(() => !!props.orderFormData)
 
 const dialogTitle = computed(() => {
   if (props.title) return props.title

@@ -6,6 +6,9 @@
     width="980px"
     :show-footer="false"
     @modal-close="visible = false">
+    <template #title-badge>
+      <UdiBadge :provide-udi="detail?.provideUdi" />
+    </template>
 
     <div v-if="detail" class="sdd-layout">
       <!-- 左侧 -->
@@ -144,6 +147,7 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { ref, computed, watch } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -177,10 +181,12 @@ const modalTitle = computed(() => {
 
 const prodStatus = (s: string) => ({ warehoused: 'in', warehouse_out: 'out' }[s] ?? 'pending')
 
+let detailRequest = 0
 const refreshProducts = async () => {
+  const request = ++detailRequest
   if (!props.recordId) return
   const res = await getWarehouseDetail(props.recordId) as any
-  detail.value = res
+  if (request === detailRequest) detail.value = res
 }
 
 const doWarehouseIn = async (productId: number) => {
@@ -220,13 +226,11 @@ const metaFields = computed(() => [
   { label: '加工中心', value: detail.value?.processingCenterName },
 ])
 
-watch(() => props.modelValue, async (val) => {
-  console.log(11,props.recordId)
-  if (!val || !props.recordId) return
+watch(() => [props.modelValue, props.recordId] as const, ([open, id]) => {
+  detailRequest++
   detail.value = null
-  const res = await getWarehouseDetail(props.recordId) as any
-  detail.value = res
-})
+  if (open && id) return refreshProducts()
+}, { immediate: true })
 </script>
 
 <style scoped lang="scss">

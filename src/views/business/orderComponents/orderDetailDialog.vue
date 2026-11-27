@@ -2,6 +2,9 @@
   <dialog-modal v-model="visible" :title="isDraft ? '草稿详情' : isClassicCase ? '经典案例详情' : '订单详情'"
     :subtitle="(order?.orderCode ? `订单号：${order.orderCode}` : '') || (order?.id ? `草稿 ${order.id}` : '')"
     width="1100px" :show-footer="!isDraft" @modal-close="visible = false">
+    <template #title-badge>
+      <UdiBadge :provide-udi="order?.provideUdi" />
+    </template>
     <template #subtitle-action>
       <button v-if="order?.orderCode" class="dwd-copy-btn" title="复制订单号" @click="handleCopyOrderCode">
         复制
@@ -615,6 +618,7 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { computed, ref } from 'vue'
 import ProcessingDocumentFile from '../designComponents/processingDocumentFile.vue'
 import dialogModal from '@/components/dialogModal.vue'

@@ -49,7 +49,9 @@
         <div v-if="activeView === 'product'" class="list-table-wrap">
           <el-table :data="productTableData" v-loading="productLoading" height="100%"
             :header-cell-style="{ background: '#f9fafb' }">
-            <el-table-column type="index" label="序号" width="50" align="center" />
+            <el-table-column type="index" label="序号" width="72" align="center">
+              <template #default="scope"><UdiBadge :provide-udi="scope.row.provideUdi" :index="scope.$index + 1" /></template>
+            </el-table-column>
             <el-table-column label="加急" width="80" align="center">
               <template #default="{ row }">
                 <el-tag v-if="row.isUrgent === 1" size="small" type="danger" effect="light">加急</el-tag>
@@ -124,7 +126,9 @@
         <div v-if="activeView === 'record'" class="list-table-wrap">
           <el-table ref="tableRef" :data="tableData" v-loading="loading" height="100%"
             :header-cell-style="{ background: '#f9fafb' }">
-            <el-table-column type="index" label="序号" width="60" align="center" fixed />
+            <el-table-column type="index" label="序号" width="72" align="center" fixed>
+              <template #default="scope"><UdiBadge :provide-udi="scope.row.provideUdi" :index="scope.$index + 1" /></template>
+            </el-table-column>
             <template v-for="col in visibleColumns" :key="col.field">
               <el-table-column v-if="col.field === 'isUrgent'" :label="col.label" :width="col.width || 80" align="center">
                 <template #default="{ row }">
@@ -297,6 +301,7 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'

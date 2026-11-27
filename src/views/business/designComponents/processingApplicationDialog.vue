@@ -9,7 +9,7 @@
         <span v-if="application?.revision">版本 {{ application.revision }}</span>
         <span v-if="editable" class="dpid2-info-panel__badge">必填</span>
       </div>
-      <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon>
+      <el-alert v-if="error" class="processing-error" :title="error" type="error" :closable="false" show-icon>
         <el-button link type="primary" @click="reload" :disabled="busy">重新加载</el-button>
       </el-alert>
       <el-empty v-if="!loading && !error && !packages.length" :description="allowEdit ? '请先上传打印数据包' : '没有可查看的打印数据包'" />
@@ -416,3 +416,14 @@ watch(() => [props.modelValue, props.order.id, props.batchId, props.initialPacka
   if (props.modelValue) loadPackages()
 }, { immediate: true })
 </script>
+
+<style scoped>
+.processing-form :deep(.dlr-main > *) {
+  flex-shrink: 0;
+}
+
+.processing-error :deep(.el-alert__title) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+</style>

@@ -19,6 +19,7 @@ export interface DraftVO {
   id: number
   orderCode?: string
   orderType: number
+  provideUdi?: 0 | 1
   orderTypeName: string
   needsPhysicalDelivery: number
   businessType: string
@@ -67,6 +68,7 @@ export interface DraftDetailVO {
   operatorName: string
   operatorPhone: string
   orderType: number
+  provideUdi?: 0 | 1
   orderTypeName: string
   needsPhysicalDelivery: number
   needsPhysicalDeliveryName: string
@@ -105,6 +107,7 @@ export interface DraftDetailVO {
 export interface DraftDTO {
   id?: number
   orderType: number
+  provideUdi?: 0 | 1
   needsPhysicalDelivery: number
   businessType: string
   orgId: number
@@ -182,6 +185,7 @@ export interface OrderVO {
   id: number
   orderCode: string
   orderType: number
+  provideUdi?: 0 | 1
   orderTypeName: string
   needsPhysicalDelivery: number
   businessType: string
@@ -296,6 +300,7 @@ export interface OrderDetailVO extends OrderVO {
 /** 直接创建订单请求 */
 export interface CreateOrderDTO {
   orderType: number
+  provideUdi?: 0 | 1
   needsPhysicalDelivery: number
   businessType: string
   orgId: number
@@ -1042,6 +1047,7 @@ export interface OrderModifyDirectDTO {
  */
 export interface OrderModifyFullDTO {
   orderType?: number
+  provideUdi?: 0 | 1
   needsPhysicalDelivery?: number
   businessType?: string
   hospitalId?: number

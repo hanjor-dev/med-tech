@@ -6,6 +6,9 @@
     width="1100px"
     :show-footer="false"
     @modal-close="visible = false">
+    <template #title-badge>
+      <UdiBadge :provide-udi="detail?.provideUdi" />
+    </template>
     <div class="dlr-root" v-if="detail">
       <!-- Left Sidebar -->
       <aside class="dlr-slidebar">
@@ -307,6 +310,7 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { ref, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import dialogModal from '@/components/dialogModal.vue'

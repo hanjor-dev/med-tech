@@ -46,7 +46,9 @@
           :header-cell-style="{ background: '#f9fafb' }"
           row-key="id">
 
-          <el-table-column type="index" label="序号" width="60" align="center" />
+          <el-table-column type="index" label="序号" width="72" align="center">
+            <template #default="scope"><UdiBadge :provide-udi="scope.row.provideUdi" :index="scope.$index + 1" /></template>
+          </el-table-column>
           <template v-for="col in visibleColumns" :key="col.field">
             <!-- 加急 -->
             <el-table-column v-if="col.field === 'isUrgent'" :label="col.label" :width="col.width || 65" align="center">
@@ -139,6 +141,7 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Sortable from 'sortablejs'

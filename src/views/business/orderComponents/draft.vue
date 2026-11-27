@@ -77,7 +77,7 @@
   </div>
 
   <!-- 草稿编辑弹窗：复用 OrderCreateDialog -->
-  <order-create-dialog v-model="showEditDialog" :draft="editingDraftDetail" @success="onEditSuccess"
+  <order-create-dialog v-model="showEditDialog" :draft="editingDraftDetail" :restored-form-data="uploadingFormData" @success="onEditSuccess"
     @save-and-upload="onSaveAndUpload" />
 
   <!-- 草稿文件上传弹窗 -->
@@ -183,6 +183,7 @@ const uploadingFormData = ref<DraftDTO | null>(null)
 
 const handleEdit = async (row: DraftVO) => {
   try {
+    uploadingFormData.value = null
     editingDraftDetail.value = await draftDetail(row.id)
     showEditDialog.value = true
   } catch {

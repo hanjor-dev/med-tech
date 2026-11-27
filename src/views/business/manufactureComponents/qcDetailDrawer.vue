@@ -6,6 +6,9 @@
     width="1100px"
     :show-footer="false"
     @modal-close="visible = false">
+    <template #title-badge>
+      <UdiBadge :provide-udi="detail?.provideUdi" />
+    </template>
     <div class="dlr-root" v-if="detail">
       <aside class="dlr-slidebar">
         <div class="dwd-pt-card">
@@ -134,12 +137,13 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { ref, watch, computed } from 'vue'
 import dialogModal from '@/components/dialogModal.vue'
 import { getProductionRecordDetail } from '@/api/production'
 import { statusLabel, statusStyle } from '../statusConfig'
 
-const props = defineProps<{ modelValue: boolean; record: any | null }>()
+const props = defineProps<{ modelValue: boolean; recordId: number | null }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>()
 
 const visible = computed({
@@ -149,11 +153,14 @@ const visible = computed({
 
 const detail = ref<any>(null)
 
-watch(() => props.modelValue, async (val) => {
-  if (!val || !props.record) return
-  const res = await getProductionRecordDetail(props.record.id)
-  detail.value = (res as any).data ?? res
-})
+watch(() => [props.modelValue, props.recordId] as const, async ([open, id], _, onCleanup) => {
+  let current = true
+  onCleanup(() => { current = false })
+  detail.value = null
+  if (!open || !id) return
+  const res = await getProductionRecordDetail(id)
+  if (current) detail.value = (res as any).data ?? res
+}, { immediate: true })
 </script>
 
 <style scoped lang="scss">

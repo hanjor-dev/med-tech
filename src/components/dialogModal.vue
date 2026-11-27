@@ -3,7 +3,7 @@
     <template #header>
       <div class="dialog-header__left">
         <slot name="title">
-          <div class="dialog-header__title" style="margin-bottom: 5px;">{{ dialogTitle }}</div>
+          <div class="dialog-header__title" style="margin-bottom: 5px;">{{ dialogTitle }}<slot name="title-badge" /></div>
         </slot>
         <span class="dialog-header__subtitle" v-if="dialogSubtitle && !minimized" style="color: #606266;">
           <span>{{ dialogSubtitle }}</span>

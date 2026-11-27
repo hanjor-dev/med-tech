@@ -32,6 +32,7 @@ export interface ProductionProductVO {
 }
 
 export interface ProductionRecordVO {
+  provideUdi?: number | null
   id: number
   recordNo: string
   publicOrderCode?: string
@@ -330,6 +331,7 @@ export const transferToPack = (recordId: number) =>
 
 // 23.22 质检列表
 export interface QcRecordVO {
+  provideUdi?: number | null
   id: number
   recordNo: string
   orderType: number
@@ -393,6 +395,7 @@ export const getDevicesByCenter = (params: { deviceType: string }) =>
 
 // 23.12 分页查询产品明细列表
 export interface ProductionProductDetailVO {
+  provideUdi?: number | null
   id: number
   productNo: string
   productName: string

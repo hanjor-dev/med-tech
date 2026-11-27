@@ -59,7 +59,9 @@
             :header-cell-style="{ background: '#f9fafb' }"
             row-key="id">
 
-            <el-table-column type="index" label="序号" width="60" align="center" fixed />
+            <el-table-column type="index" label="序号" width="72" align="center" fixed>
+              <template #default="scope"><UdiBadge :provide-udi="scope.row.provideUdi" :index="scope.$index + 1" /></template>
+            </el-table-column>
             <template v-for="col in visibleColumns" :key="col.field">
               <el-table-column v-if="col.field === 'isUrgent'" :label="col.label" :width="col.width || 65" align="center">
                 <template #default="{ row }">
@@ -522,10 +524,11 @@
     </div>
   </dialog-modal>
 
-  <qc-detail-drawer v-model="detailVisible" :record="detailRecord" />
+  <qc-detail-drawer v-model="detailVisible" :record-id="detailRecordId" />
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -738,8 +741,8 @@ const handleFilterReset = () => {
 
 // ── 详情抽屉 ─────────────────────────────────────────────
 const detailVisible = ref(false)
-const detailRecord = ref<any>(null)
-const openDetail = (row: any) => { detailRecord.value = row; detailVisible.value = true }
+const detailRecordId = ref<number | null>(null)
+const openDetail = (row: any) => { detailRecordId.value = row.id; detailVisible.value = true }
 
 // ── 表头扫码 ─────────────────────────────────────────────
 const headerScanCode = ref('')
@@ -954,12 +957,12 @@ const route = useRoute()
 const router = useRouter()
 
 watch(() => route.query.detailId, (detailId) => {
-  if (detailId && tableData.value.length) {
-    const row = tableData.value.find(r => r.id === Number(detailId))
-    if (row) {
-      openDetail(row)
-      router.replace({ query: {} })
-    }
+  const id = Number(detailId)
+  if (Number.isSafeInteger(id) && id > 0) {
+    detailRecordId.value = id
+    detailVisible.value = true
+    const { detailId: _, ...query } = route.query
+    router.replace({ query })
   }
 }, { immediate: true })
 

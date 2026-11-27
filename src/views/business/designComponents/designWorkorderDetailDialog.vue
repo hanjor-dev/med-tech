@@ -1,6 +1,9 @@
 <template>
   <dialog-modal v-model="visible" :title="workorder ? '工单详情' : '加载中…'" :subtitle="subtitle" width="1100px"
     @modal-close="visible = false">
+    <template #title-badge>
+      <UdiBadge :provide-udi="workorder?.provideUdi" />
+    </template>
     <template #subtitle-action>
       <button v-if="workorder?.orderCode" class="dwd-copy-btn" title="复制订单号" @click="handleCopyOrderCode">
         复制
@@ -572,6 +575,7 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { computed, ref, watch } from 'vue'
 import PackageDownloadIcon from './PackageDownloadIcon.vue'
 import PackageDocumentCard from './PackageDocumentCard.vue'

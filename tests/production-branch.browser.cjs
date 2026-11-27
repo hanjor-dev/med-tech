@@ -283,14 +283,14 @@ const assert = require('node:assert/strict')
             packageCode: 'PK-' + id,
             revision: 2,
             status: 'DRAFT',
-            header: { orderCode: 'TEST-' + fetchedOrder, orgName: '合成机构' },
+            header: { orderCode: 'TEST-' + fetchedOrder, orgName: '合成机构', expectedDeliveryDate: null },
             editable: true,
             files,
             products: [{ category:'17.1', categoryName:'模型类', id:510, productName:'样例模型', specs:[{id:520,specName:'标准号'}] }],
             materials: [{code:'RESIN', name:'树脂', isDefault:true}, {code:'PLA',name:'PLA'}],
             colorGroups: [{categoryCode:null,colors:[{code:'WHITE',name:'白色',isDefault:true},{code:'CLEAR',name:'透明'}]}],
             materialOptions: [{ code: 'WHITE_RESIN', name: '白色树脂' }],
-            deliveryTime: '2026-12-01 16:00:00',
+            deliveryTime: null,
             isPostal: 1, postalAddress: '测试地址',
             processingRequirements: '合成草稿',
             items: Array.from({ length: 14 }, (_, i) => ({
@@ -311,7 +311,7 @@ const assert = require('node:assert/strict')
           }
           if (lastSave.expectedRevision !== records.get(key).revision) {
             code = 409
-            message = '版本冲突，请刷新后重试'
+            message = '版本冲突，请刷新后重试\n' + '单据版本已经更新。'.repeat(25)
           } else if (lastSave.confirmedHeader?.hospitalName !== records.get(key).header.hospitalName) {
             code = 409
             message = '主单表头已变化，请刷新并确认后保存加工申请单'
@@ -663,7 +663,19 @@ const assert = require('node:assert/strict')
       await dialog.locator('.pkg-item--active .pkg-item__name').getByText('PK-11', { exact: true }).waitFor()
       await dialog.locator('textarea').fill('修改说明')
       await dialog.getByRole('button', { name: '保存申请单', exact: true }).click()
-      await dialog.getByText('版本冲突，请刷新后重试').first().waitFor()
+      const alert = dialog.locator('.processing-error')
+      await alert.waitFor()
+      const originalViewport = page.viewportSize()
+      await page.setViewportSize({ width: 1100, height: 620 })
+      const title = alert.locator('.el-alert__title')
+      assert.match(await title.textContent(), /版本冲突，请刷新后重试\n/)
+      for (const child of [title, alert.getByRole('button', { name: '重新加载' })]) {
+        const box = await child.boundingBox()
+        const bounds = await alert.boundingBox()
+        assert.ok(box && bounds && box.y >= bounds.y - 1 && box.y + box.height <= bounds.y + bounds.height + 1)
+        assert.ok(box.x >= bounds.x - 1 && box.x + box.width <= bounds.x + bounds.width + 1)
+      }
+      await page.setViewportSize(originalViewport)
       assert.equal(await dialog.locator('textarea').inputValue(), '修改说明')
       assert.equal(docCalls, 0)
       await dialog.getByRole('button', { name: '重新加载' }).click()

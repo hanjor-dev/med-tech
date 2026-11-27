@@ -28,6 +28,7 @@ export type ProductionType = 1 | 2
 
 /** 设计工单列表项 VO */
 export interface DesignWorkorderVO {
+  provideUdi?: number | null
   id: number
   orderCode: string
   status: number
@@ -256,6 +257,7 @@ export interface DesignReportVO {
 
 /** 工单详情 VO */
 export interface DesignWorkorderDetailVO {
+  provideUdi?: number | null
   id: number
   orderCode: string
   publicOrderCode?: string

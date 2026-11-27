@@ -42,7 +42,9 @@
           @mousemove="onTableScrollMouseMove" @mouseup="onTableScrollMouseUp" @mouseleave="onTableScrollMouseLeave">
           <el-table :data="tableData" v-loading="loading" ref="tableRef" :header-cell-style="{ background: '#f9fafb' }"
             stripe height="100%">
-            <el-table-column type="index" label="序号" width="55" align="center" fixed />
+            <el-table-column type="index" label="序号" width="72" align="center" fixed>
+              <template #default="scope"><UdiBadge :provide-udi="scope.row.provideUdi" :index="scope.$index + 1" /></template>
+            </el-table-column>
             <!-- 动态列 -->
             <template v-for="col in visibleColumns" :key="col.field">
               <!-- 订单编号 -->
@@ -401,6 +403,7 @@
 </template>
 
 <script setup lang="ts">
+import UdiBadge from '@/components/UdiBadge.vue'
 import { ref, reactive, computed, onMounted, watch, nextTick, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
