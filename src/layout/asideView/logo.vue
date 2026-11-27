@@ -8,7 +8,7 @@
 			</div>
 			<div class="logo-text">
 				<span class="logo-tag">CTSS · MedTech Platform</span>
-				<span class="logo-version" v-if="appVersion">v{{ appVersion }}</span>
+				<button v-if="appVersion" type="button" class="logo-version" @click="handleVersionClick">{{ appVersion }}</button>
 			</div>
 		</div>
 		<!-- 用户卡片 -->
@@ -38,7 +38,8 @@
 </template>
 
 <script setup lang="ts" name="layoutLogo">
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import $axios from '@/utils/http';
 import { useUserInfo } from '@/stores/userInfo';
 import { useRouter } from 'vue-router';
 
@@ -54,7 +55,28 @@ const userInitials = computed(() => {
 	return name.length > 0 ? name.slice(0, 1) : '管';
 });
 
-const appVersion = import.meta.env.VITE_APP_VERSION || '';
+const appVersion = ref('');
+onMounted(async () => {
+	try {
+		appVersion.value = await $axios.get<string, string>('/system/auth/version', { localErrorHandling: true });
+	} catch {
+		// 版本信息不可用时隐藏徽标，侧栏仍可使用。
+		appVersion.value = '';
+	}
+});
+
+let versionClicks = 0;
+let lastVersionClick = 0;
+
+function handleVersionClick() {
+	const now = performance.now();
+	versionClicks = now - lastVersionClick <= 1000 ? versionClicks + 1 : 1;
+	lastVersionClick = now;
+	if (versionClicks === 5) {
+		versionClicks = 0;
+		window.open('https://www.wolai.com/hanjor/oHMHe5jAvyTrYYWfWhHS3L', '_blank', 'noopener,noreferrer');
+	}
+}
 
 const handleUserClick = () => {
 	router.push('/personal');
@@ -125,6 +147,10 @@ const handleUserClick = () => {
 }
 
 .logo-version {
+	border: 0;
+	font-family: inherit;
+	cursor: pointer;
+	user-select: none;
 	display: inline-block;
 	font-size: 9px;
 	color: #9ca3af;
