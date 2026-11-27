@@ -446,36 +446,36 @@
                   <el-button text :icon="MoreFilled" />
                   <template #dropdown>
                     <el-dropdown-menu>
-                      <el-dropdown-item @click.stop="handleView(row)">
-                        <span class="icon-tag" v-permission="'order:View'">
+                      <el-dropdown-item v-if="userInfo.hasPermission('order:View')" @click.stop="handleView(row)">
+                        <span class="icon-tag">
                           <el-icon>
                             <View />
                           </el-icon>查看详情
                         </span>
                       </el-dropdown-item>
-                      <el-dropdown-item @click.stop="handleModify(row)" v-if="row.status !== 9010">
-                        <span class="icon-tag" v-permission="'order:Modify'">
+                      <el-dropdown-item @click.stop="handleModify(row)" v-if="userInfo.hasPermission('order:Modify') && (row.status !== 9010)">
+                        <span class="icon-tag">
                           <el-icon>
                             <EditPen />
                           </el-icon>修改订单
                         </span>
                       </el-dropdown-item>
-                      <el-dropdown-item @click.stop="handleResubmit(row)" v-if="row.status === 1040">
-                        <span class="icon-tag" v-permission="'order:Review'">
+                      <el-dropdown-item @click.stop="handleResubmit(row)" v-if="userInfo.hasPermission('order:Review') && (row.status === 1040)">
+                        <span class="icon-tag">
                           <el-icon>
                             <Upload />
                           </el-icon>重新提交订单
                         </span>
                       </el-dropdown-item>
-                      <el-dropdown-item @click.stop="handleRecreateOrder(row)" divided>
-                        <span class="icon-tag" v-permission="'order:Add'">
+                      <el-dropdown-item v-if="userInfo.hasPermission('order:Add')" @click.stop="handleRecreateOrder(row)" divided>
+                        <span class="icon-tag">
                           <el-icon>
                             <CirclePlus />
                           </el-icon>再来一单
                         </span>
                       </el-dropdown-item>
-                      <el-dropdown-item @click.stop="handleViewModifyLog(row)" v-if="row.status !== 9010">
-                        <span class="icon-tag" v-permission="'order:ModifyHistory'">
+                      <el-dropdown-item @click.stop="handleViewModifyLog(row)" v-if="userInfo.hasPermission('order:ModifyHistory') && (row.status !== 9010)">
+                        <span class="icon-tag">
                           <el-icon>
                             <Edit />
                           </el-icon>修改历史
@@ -483,37 +483,37 @@
                       </el-dropdown-item>
 
                       <el-dropdown-item @click.stop="handleAssignDesigner(row)"
-                        v-if="row.status === 1030 || row.status === 2010 || row.status === 2020">
-                        <span class="icon-tag" v-permission="'design:AssignDesigner'">
+                        v-if="userInfo.hasPermission('design:AssignDesigner') && (row.status === 1030 || row.status === 2010 || row.status === 2020)">
+                        <span class="icon-tag">
                           <el-icon>
                             <User />
                           </el-icon>分配设计师
                         </span>
                       </el-dropdown-item>
 
-                      <el-dropdown-item @click.stop="handleCancel(row)" v-if="row.status !== 9010">
-                        <span class="icon-tag" v-permission="'order:Cancel'">
+                      <el-dropdown-item @click.stop="handleCancel(row)" v-if="userInfo.hasPermission('order:Cancel') && (row.status !== 9010)">
+                        <span class="icon-tag">
                           <el-icon>
                             <Remove />
                           </el-icon>订单取消
                         </span>
                       </el-dropdown-item>
-                      <el-dropdown-item @click.stop="handleCancelHistory(row)">
-                        <span class="icon-tag" v-permission="'order:CancelHistory'">
+                      <el-dropdown-item v-if="userInfo.hasPermission('order:CancelHistory')" @click.stop="handleCancelHistory(row)">
+                        <span class="icon-tag">
                           <el-icon>
                             <Clock />
                           </el-icon>查看取消历史
                         </span>
                       </el-dropdown-item>
-                      <el-dropdown-item @click.stop="handleDicomView(row)" divided>
-                        <span class="icon-tag" v-permission="'order:DicomView'">
+                      <el-dropdown-item v-if="userInfo.hasPermission('order:DicomView')" @click.stop="handleDicomView(row)" divided>
+                        <span class="icon-tag">
                           <el-icon>
                             <Monitor />
                           </el-icon>可视化预览
                         </span>
                       </el-dropdown-item>
-                      <el-dropdown-item @click.stop="handleEncodeView(row)" v-if="row.status !== 9010">
-                        <span class="icon-tag" v-permission="'order:EncodeView'">
+                      <el-dropdown-item @click.stop="handleEncodeView(row)" v-if="userInfo.hasPermission('order:EncodeView') && (row.status !== 9010)">
+                        <span class="icon-tag">
                           <el-icon>
                             <Link />
                           </el-icon>生成二维码
@@ -521,9 +521,9 @@
                       </el-dropdown-item>
 
                       <el-dropdown-item @click.stop="handleMarkClassicCase(row)"
-                        v-if="(row.needsPhysicalDelivery === 1 && (row.phase === 80 || row.status === 6030 || row.status === 8081)) || (row.needsPhysicalDelivery !== 1 && (row.status === 2030 || row.status === 8010))"
+                        v-if="userInfo.hasPermission('order:MarkCase') && ((row.needsPhysicalDelivery === 1 && (row.phase === 80 || row.status === 6030 || row.status === 8081)) || (row.needsPhysicalDelivery !== 1 && (row.status === 2030 || row.status === 8010)))"
                         divided :disabled="addMarkLoading">
-                        <span class="icon-tag" v-permission="'order:MarkCase'">
+                        <span class="icon-tag">
                           <el-icon>
                             <Star />
                           </el-icon>标记为经典案例
