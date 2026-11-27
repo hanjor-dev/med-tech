@@ -9,6 +9,7 @@ module.exports = async function verifyJavaContract({
   base,
   directory,
   permissions,
+  openBranch,
 }) {
   const json = async (name) =>
     JSON.parse(await readFile(path.join(directory, name), 'utf8'))
@@ -60,6 +61,7 @@ module.exports = async function verifyJavaContract({
     id: form.orderId,
     orderCode: form.header.orderCode,
     orderType: 2,
+    productionTypes: [2],
     needsPhysicalDelivery: 1,
     status: form.status === 'ARCHIVED' ? 2030 : 2020,
   })
@@ -95,7 +97,7 @@ module.exports = async function verifyJavaContract({
       data =
         form === archived
           ? packages
-          : [{ id: form.packageId, packageCode: form.packageCode }]
+          : [{ id: form.packageId, productionType: 2, packageCode: form.packageCode }]
     } else if (api.endsWith('/processing-application'))
       data = bodies.get(Number(api.split('/')[3]))
     else if (api.endsWith('/processing-application/document')) data = doc
@@ -123,34 +125,38 @@ module.exports = async function verifyJavaContract({
   const xlsx = page
     .getByRole('dialog')
     .filter({ has: page.locator('.xlsx-preview') })
-  const open = async (entity, label) => {
+  const open = async (entity, entry, label) => {
     await page
       .locator('tr')
       .filter({ hasText: entity.header.orderCode })
       .getByRole('button')
       .last()
       .click()
-    await page.getByRole('menuitem', { name: label }).click()
+    const chooser = await openBranch(entry, label)
+    await chooser.getByRole('menuitem', { name: label, exact: true }).click()
   }
-  await open(draft, '填写加工申请单')
+  await open(draft, '填写生产信息', '加工申请单')
   const total = draft.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0)
-  await form.getByText(`共 ${total} 件`, { exact: true }).waitFor()
+  await form.getByRole('spinbutton').first().waitFor()
+  const quantities = await form.getByRole('spinbutton').evaluateAll(inputs => inputs.map(input => Number(input.value)))
+  assert.equal(quantities.length, draft.items.length)
+  assert.equal(quantities.reduce((sum, quantity) => sum + quantity, 0), total)
   const models = draft.files.filter((file) => file.productionModel)
   const modelById = new Map(models.map((file) => [file.id, file]))
-  const rows = form.locator('.el-table__body tr')
-  assert.equal(await rows.count(), draft.items.length)
+  const selectedModels = form.locator('.dpid2-card .el-select .el-tag')
   for (const [index, item] of draft.items.entries()) {
     if (item.packageFileId == null) continue
     const file = modelById.get(item.packageFileId)
     assert.ok(file, `第 ${index + 1} 行的文件 ${item.packageFileId} 必须属于当前数据包`)
     const sameName = models.filter((model) => model.fileName === file.fileName)
     const label = sameName.length > 1 ? `${file.fileName} (#${file.id})` : file.fileName
-    await rows.nth(index).getByText(label, { exact: true }).waitFor()
+    await selectedModels.getByText(label, { exact: true }).first().waitFor()
   }
   await form.getByRole('button', { name: '关闭', exact: true }).last().click()
-  await open(archived, '查看加工申请单')
-  await form.getByText('已归档', { exact: true }).waitFor()
-  await form.getByRole('button', { name: '预览', exact: true }).click()
+  await open(archived, '查看生产信息', '加工申请单')
+  await form.locator('.pkg-item--active').getByText('已归档', { exact: true }).waitFor()
+  await form.getByRole('tab', { name:'加工申请单文件' }).click()
+  await form.getByRole('button', { name: '在线预览', exact: true }).click()
   await xlsx.getByText(doc.fileName, { exact: true }).waitFor()
   await xlsx.locator('canvas').first().waitFor()
   await xlsx.getByTitle('关闭').click()
@@ -161,14 +167,17 @@ module.exports = async function verifyJavaContract({
     assert.equal(downloaded.suggestedFilename(), doc.fileName)
     assert.deepEqual(await readFile(await downloaded.path()), original)
   }
-  await verifyDownload(form.getByRole('button', { name: '下载', exact: true }))
-  for (const route of [
-    '/#/manufacture?detailId=' + card.id + '&action=preview',
-    '/#/order?detailId=' + archived.orderId,
+  await verifyDownload(form.getByRole('button', { name: '下载文件', exact: true }))
+  for (const [route, detailApi] of [
+    ['/#/manufacture?detailId=' + card.id + '&action=preview', '/production/record/' + card.id],
+    ['/#/order?detailId=' + archived.orderId, '/order/' + archived.orderId],
   ]) {
-    await page.goto(base + route)
+    await Promise.all([
+      page.waitForResponse(base + '/yi' + detailApi),
+      page.goto(base + route),
+    ])
     const file = page
-      .getByLabel('已归档加工申请单')
+      .getByLabel('加工申请单文件')
       .filter({ hasText: doc.fileName })
       .first()
     await file.getByRole('button', { name: '预览', exact: true }).click()
@@ -181,7 +190,7 @@ module.exports = async function verifyJavaContract({
   // Independently inspect the genuine 14-line POI fixture using the same preview component.
   sample = true
   await page
-    .getByLabel('已归档加工申请单')
+    .getByLabel('加工申请单文件')
     .filter({ hasText: doc.fileName })
     .first()
     .getByRole('button', { name: '预览', exact: true })
