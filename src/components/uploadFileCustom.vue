@@ -199,10 +199,7 @@ const handleFileChange = (file: FileItem, files: FileItem[], config: FileTypeCon
   }
 
   if (validRawFiles.length > 0) {
-    fileMap.value[config.type] = [
-      ...(fileMap.value[config.type] || []),
-      ...validRawFiles,
-    ]
+    fileMap.value[config.type].push(...validRawFiles)
     uploadRefs.value[config.type]?.clearFiles?.()
   }
 
@@ -264,10 +261,10 @@ const buildUploadUrl = (config: FileTypeConfig): string => {
 
 const uploadSingle = (file: FileItem, config: FileTypeConfig) => {
   if (!file.raw) return
-  const list = fileMap.value[config.type]
   const fileUid = file.uid
 
   const updateFile = (patch: Partial<FileItem>) => {
+    const list = fileMap.value[config.type]
     const idx = list.findIndex(f => f.uid === fileUid)
     if (idx !== -1) {
       list[idx] = { ...list[idx], ...patch }
@@ -294,7 +291,11 @@ const uploadSingle = (file: FileItem, config: FileTypeConfig) => {
       const data = JSON.parse(xhr.responseText)
       if (data.code === 200) {
         const id = resolveUploadFileId(data.data as any)
-        updateFile({ status: 'success', response: data, fileId: id ?? undefined, uploadProgress: 100 })
+        const fields = config.mapSingleUploadResult?.(data.data ?? {})
+        updateFile({ status: 'success', response: data, fileId: id ?? undefined, uploadProgress: 100, ...fields })
+        if (fields?.packageId != null) {
+          fileMap.value[config.type] = fileMap.value[config.type].filter(f => !f.isExisting || f.packageId !== fields.packageId)
+        }
         onUploadDone()
       } else {
         updateFile({ status: 'fail', response: data, uploadProgress: undefined })
@@ -470,45 +471,25 @@ const ensureInitialized = (type?: string) => {
 }
 
 const handleRemove = async (config: FileTypeConfig, file: FileItem) => {
-  if (file.canDelete === false) return
+  if (file.canDelete === false || file.deleting || file.status === 'uploading') return
   ensureInitialized(config.type)
-  const list = fileMap.value[config.type]
-  // 已有文件调用 onDelete 钩子
-  if (file.isExisting && config.onDelete) {
+  if ((file.isExisting || file.packageId != null) && config.onDelete) {
+    file.deleting = true
     try {
       await config.onDelete(file, props.extra)
     } catch {
+      file.deleting = false
       return // 用户取消则不删除
     }
   }
-  fileMap.value[config.type] = list.filter(f => f.uid !== file.uid)
+  fileMap.value[config.type] = fileMap.value[config.type].filter(f => f.uid !== file.uid)
 }
 
 const handleClear = async (config: FileTypeConfig) => {
   ensureInitialized(config.type)
   const list = fileMap.value[config.type] || []
 
-  // 对已有文件逐个调用删除接口，失败的文件保留在列表中，避免界面与后端状态不一致
-  if (config.onDelete) {
-    const existingFiles = list.filter(f => f.isExisting && f.canDelete !== false)
-    if (existingFiles.length > 0) {
-      const failedFileUids = new Set<number>()
-      await Promise.all(existingFiles.map(async (file) => {
-        try {
-          await config.onDelete!(file, props.extra)
-        } catch {
-          failedFileUids.add(file.uid)
-        }
-      }))
-      fileMap.value[config.type] = list.filter(file =>
-        file.canDelete === false || (file.isExisting && failedFileUids.has(file.uid))
-      )
-      uploadRefs.value[config.type]?.clearFiles()
-      return
-    }
-  }
-
-  fileMap.value[config.type] = []
+  await Promise.all(list.map(file => handleRemove(config, file)))
   uploadRefs.value[config.type]?.clearFiles()
 }
 
@@ -608,7 +589,9 @@ watch(() => [props.types, props.initialFileMap] as const, async () => {
     try {
       const existing = await config.initExisting(props.extra)
       if (existing?.length) {
-        fileMap.value[config.type] = existing
+        const files = fileMap.value[config.type]
+        const uploadedIds = new Set(files.map(file => file.packageId).filter(id => id != null))
+        files.unshift(...existing.filter(file => file.packageId == null || !uploadedIds.has(file.packageId)))
       }
     } catch { /* ignore */ }
   }
@@ -855,7 +838,7 @@ defineExpose({ fileMap, getFileIdsByType, uploading, handleConfirm, submitting }
                       <line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
                   </a>
-                  <button v-if="file.canDelete !== false" class="fup-file-card__action" @click="handleRemove(config, file)">
+                  <button v-if="file.canDelete !== false" class="fup-file-card__action" :disabled="file.deleting || file.status === 'uploading'" @click="handleRemove(config, file)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <line x1="18" y1="6" x2="6" y2="18"/>
                     <line x1="6" y1="6" x2="18" y2="18"/>

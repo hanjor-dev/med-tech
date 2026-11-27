@@ -1,8 +1,8 @@
 <template>
   <dialog-modal v-model="visible" title="上传设计文件" :subtitle="subtitle" :width="width" :show-footer="true"
-    @modal-close="handleClose">
+    :close-on-press-escape="!uploadRef?.uploading && !submitting" @modal-close="handleClose">
     <uploadFileCustom
-      :key="orderId ?? undefined"
+      :key="order.id"
       ref="uploadRef"
       :types="fileTypes"
       :extra="uploadExtra"
@@ -49,6 +49,7 @@ import {
   type ModelListItem,
 } from '@/api/design'
 import { getConfigDetailByKey } from '@/api/param'
+import type { ProductionOrder } from '../productionBranch'
 
 defineOptions({ name: 'DesignFileUploadDialog' })
 
@@ -57,8 +58,7 @@ defineOptions({ name: 'DesignFileUploadDialog' })
 // ─────────────────────────────────────────────────────────────────
 const props = defineProps<{
   modelValue: boolean
-  orderId: number | null
-  orderCode?: string
+  order: ProductionOrder
   mode?: 'NORMAL' | 'APPEND_BATCH'
   batchId?: number | null
 }>()
@@ -66,15 +66,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
   (e: 'success'): void
-  (e: 'next', batchId: number | null, packageId: number): void
 }>()
 
 const visible = computed({
   get: () => props.modelValue,
-  set: (val) => emit('update:modelValue', val),
+  set: (val) => { if (!val) handleClose() },
 })
 
-const subtitle = computed(() => props.orderId ? `订单号：${props.orderCode}` : '')
+const subtitle = computed(() => props.order.id ? `订单号：${props.order.orderCode}` : '')
 const width = '960px'
 
 // ─────────────────────────────────────────────────────────────────
@@ -109,7 +108,7 @@ const packageAccept = ref('.zip,.tar,.rar,.7z')
 const packageMaxSizeMb = ref(3072)
 // 追加模式下，上传进度卡片需要区分历史数据包和当前追加批次数据包。
 const packageHistoryCount = ref(0)
-
+const packagesChanged = ref(false)
 // 可视化模型配置
 const modelAccept = ref('.3dpdf,.ply,.stl,.obj,.pdf')
 const modelMaxSizeMb = ref(3072)
@@ -175,16 +174,17 @@ const buildPackageNameRule = (orderCode: string | undefined) => {
 }
 
 // 监听弹框打开，加载配置
-watch([visible, () => props.orderId], ([open, orderId]) => {
+watch([visible, () => props.order.id], ([open, orderId]) => {
   modelListRequest = undefined
   remarkLoaded.value = false
   modelRemark.value = ''
   savedModelRemark.value = ''
+  packagesChanged.value = false
   if (open && orderId) void loadDesignConfig()
 }, { immediate: true })
 
-const fileTypes = computed<FileTypeConfig[]>(() => [
-  {
+const printPackageConfig = computed<FileTypeConfig>(() => {
+  return {
     type: 'printPackage',
     label: '打印文件（数据包）',
     num: '01',
@@ -198,23 +198,34 @@ const fileTypes = computed<FileTypeConfig[]>(() => [
     uploadApi: '/yi/design/package/upload',
     uploadBatch: false,
     uploadFileField: 'file',
-    uploadExtraParams: { orderId: props.orderId ?? undefined, batchId: props.mode === 'APPEND_BATCH' ? props.batchId ?? undefined : undefined },
-    validateFileName: buildPackageNameRule(props.orderCode),
+    uploadExtraParams: {
+      orderId: props.order.id,
+      batchId: props.mode === 'APPEND_BATCH' ? props.batchId ?? undefined : undefined,
+    },
+    mapSingleUploadResult: pkg => {
+      packagesChanged.value = true
+      return {
+        packageId: pkg.id,
+        packageNo: pkg.packageSeq == null ? undefined : `包 ${pkg.packageSeq}`,
+        canDelete: pkg.canDelete !== false,
+      }
+    },
+    validateFileName: buildPackageNameRule(props.order.orderCode),
     maxSizeMb: packageMaxSizeMb.value,
     initExisting: async () => {
-      if (!props.orderId) return []
+      if (!props.order.id) return []
       let list: PackageListItem[]
       if (props.mode === 'APPEND_BATCH' && props.batchId) {
         const [allPackages, batchPackages] = await Promise.all([
-          designPackageList(props.orderId),
-          designPackageListForBatch(props.orderId, props.batchId),
+          designPackageList(props.order.id),
+          designPackageListForBatch(props.order.id, props.batchId),
         ])
         packageHistoryCount.value = Math.max(allPackages.length - batchPackages.length, 0)
         // 追加模式下完整展示历史数据包，但历史数据包仅可查看，当前批次才可删除。
         list = allPackages
       } else {
         packageHistoryCount.value = 0
-        list = await designPackageList(props.orderId)
+        list = await designPackageList(props.order.id)
       }
       return list.map((pkg: PackageListItem, idx: number): FileItem => ({
         uid: -pkg.id,
@@ -232,9 +243,7 @@ const fileTypes = computed<FileTypeConfig[]>(() => [
         isCurrentBatch: props.mode === 'APPEND_BATCH' && props.batchId
           ? pkg.batchId === props.batchId
           : true,
-        canDelete: props.mode === 'APPEND_BATCH' && props.batchId
-          ? pkg.batchId === props.batchId
-          : true,
+        canDelete: pkg.canDelete !== false && (props.mode !== 'APPEND_BATCH' || pkg.batchId === props.batchId),
       }))
     },
     countBreakdown: props.mode === 'APPEND_BATCH'
@@ -244,14 +253,19 @@ const fileTypes = computed<FileTypeConfig[]>(() => [
       })
       : undefined,
     onDelete: async (file: FileItem) => {
-      if (!props.orderId || !file.packageId) return
+      if (!props.order.id || !file.packageId) return
       if (props.mode === 'APPEND_BATCH' && props.batchId) {
-        await designPackageDeleteForBatch(Number(file.packageId), props.orderId, props.batchId)
+        await designPackageDeleteForBatch(Number(file.packageId), props.order.id, props.batchId)
       } else {
-        await designPackageDelete(Number(file.packageId), props.orderId)
+        await designPackageDelete(Number(file.packageId), props.order.id)
       }
+      packagesChanged.value = true
     },
-  },
+  }
+})
+
+const fileTypes = computed<FileTypeConfig[]>(() => [
+  printPackageConfig.value,
   {
     type: 'model',
     label: '可视化模型',
@@ -268,10 +282,10 @@ const fileTypes = computed<FileTypeConfig[]>(() => [
     uploadDebounce: 150,
     maxSizeMb: modelMaxSizeMb.value,
     initExisting: async () => {
-      if (!props.orderId) return []
+      if (!props.order.id) return []
       const request = Symbol()
       modelListRequest = request
-      const { data, remark } = await designModelList(props.orderId)
+      const { data, remark } = await designModelList(props.order.id)
       if (modelListRequest !== request || !visible.value) return []
 
       savedModelRemark.value = remark ?? ''
@@ -292,9 +306,9 @@ const fileTypes = computed<FileTypeConfig[]>(() => [
       }))
     },
     onDelete: async (file: FileItem) => {
-      if (!props.orderId || !file.id) return
+      if (!props.order.id || !file.id) return
       try {
-        await designModelDelete(file.id as string, props.orderId)
+        await designModelDelete(file.id as string, props.order.id)
         ElMessage.success('删除成功')
       } catch (error) {
         ElMessage.error('删除失败')
@@ -318,8 +332,8 @@ const fileTypes = computed<FileTypeConfig[]>(() => [
     uploadDebounce: 150,
     maxSizeMb: reportMaxSizeMb.value,
     initExisting: async () => {
-      if (!props.orderId) return []
-      const reports = await designReportGet(props.orderId)
+      if (!props.order.id) return []
+      const reports = await designReportGet(props.order.id)
       return reports.map((report, index) => ({
         uid: -(index + 1),
         id: report.id,
@@ -335,9 +349,9 @@ const fileTypes = computed<FileTypeConfig[]>(() => [
       }))
     },
     onDelete: async (file: FileItem) => {
-      if (!props.orderId || !file.id) return
+      if (!props.order.id || !file.id) return
       try {
-        await designReportDelete(file.id as string, props.orderId)
+        await designReportDelete(file.id as string, props.order.id)
         ElMessage.success('删除成功')
       } catch (error) {
         ElMessage.error('删除失败')
@@ -347,7 +361,7 @@ const fileTypes = computed<FileTypeConfig[]>(() => [
   },
 ])
 
-const uploadExtra = computed(() => ({ orderId: props.orderId }))
+const uploadExtra = computed(() => ({ orderId: props.order.id }))
 
 const canConfirm = computed(() => {
   const fm = uploadRef.value?.fileMap
@@ -359,6 +373,11 @@ const canConfirm = computed(() => {
 // Dialog close
 // ─────────────────────────────────────────────────────────────────
 const handleClose = () => {
+  if (uploadRef.value?.uploading || submitting.value) {
+    ElMessage.warning('请等待文件上传完成')
+    return
+  }
+  if (packagesChanged.value) emit('success')
   emit('update:modelValue', false)
 }
 
@@ -372,7 +391,7 @@ const handleConfirm = async () => {
   if (!uploadRef.value) return
 
   if (!hasAnyFile.value && !remarkChanged.value) {
-    emit('update:modelValue', false)
+    handleClose()
     return
   }
   if (uploadRef.value.uploading) {
@@ -383,20 +402,14 @@ const handleConfirm = async () => {
     submitting.value = true
     await uploadRef.value.handleConfirm()
     const fm = uploadRef.value.fileMap || {}
-    // 只有本次真正新增了设计数据包，才需要继续填写该追加批次的打印信息。
-    // 追加入口也支持只维护模型/报告，此时不应把用户带到打印信息页面。
-    const packageFiles: FileItem[] = fm['printPackage'] || []
-    const newPackage = packageFiles.find(f =>
-      f.status === 'success' && !f.isExisting && f.fileId,
-    )
     // 关联本次新上传的可视化模型
     const modelFiles: FileItem[] = fm['model'] || []
     const newModelFileIds = modelFiles
       .filter(f => f.status === 'success' && !f.isExisting && f.fileId)
       .map(f => String(f.fileId))
     const remark = remarkChanged.value ? modelRemark.value.trim() : undefined
-    if (props.orderId && newModelFileIds.length > 0) {
-      const linkedModels = await designModelLink(props.orderId, newModelFileIds, remark)
+    if (props.order.id && newModelFileIds.length > 0) {
+      const linkedModels = await designModelLink(props.order.id, newModelFileIds, remark)
       const linkedByFileId = new Map(linkedModels.map(model => [String(model.fileId), model]))
       for (const file of modelFiles) {
         const model = linkedByFileId.get(String(file.fileId))
@@ -405,8 +418,8 @@ const handleConfirm = async () => {
         file.url = model.fileUrl
         file.isExisting = true
       }
-    } else if (props.orderId && remark !== undefined) {
-      await updateVisualModelRemark(props.orderId, remark)
+    } else if (props.order.id && remark !== undefined) {
+      await updateVisualModelRemark(props.order.id, remark)
     }
     if (remark !== undefined) savedModelRemark.value = remark
 
@@ -415,9 +428,9 @@ const handleConfirm = async () => {
     const newReportFileIds = reportFiles
       .filter(f => f.status === 'success' && !f.isExisting && f.fileId)
       .map(f => String(f.fileId))
-    if (props.orderId && newReportFileIds.length > 0) {
+    if (props.order.id && newReportFileIds.length > 0) {
       try {
-        await designReportLink(props.orderId, newReportFileIds)
+        await designReportLink(props.order.id, newReportFileIds)
       } catch (error) {
         if (remark === undefined) throw error
         ElMessage.error('备注已保存，设计报告关联失败')
@@ -427,9 +440,6 @@ const handleConfirm = async () => {
 
     ElMessage.success('设计文件上传成功')
     emit('success')
-    if (newPackage?.fileId) {
-      emit('next', props.batchId ?? null, Number(newPackage.fileId))
-    }
     emit('update:modelValue', false)
   } catch (err: any) {
     ElMessage.error(err.message || '上传失败')

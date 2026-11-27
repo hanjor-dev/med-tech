@@ -28,9 +28,9 @@
             </svg>
             <span>{{ fileName || '电子表格' }}</span>
             <!-- 状态 tag -->
-            <span v-if="fileType !== 'processing'" class="xlsx-preview__status-tag"
+            <span v-if="fileType !== 'processing' || archived || confirmed != null" class="xlsx-preview__status-tag"
               :class="isConfirmed ? 'xlsx-preview__status-tag--confirmed' : 'xlsx-preview__status-tag--pending'">
-              {{ isConfirmed ? '已确认' : '待确认' }}
+              {{ archived ? '已归档' : isConfirmed ? '已确认' : '待确认' }}
             </span>
           </div>
         </div>
@@ -40,21 +40,21 @@
       </template>
     </div>
     <template #footer-btn>
-      <button class="btn btn-primary" :disabled="confirming || isConfirmed || !canEdit" @click="handleConfirm">
-        {{ confirming ? '确认中…' : isConfirmed ? '已确认' : (fileType === 'drawing' ? '确认图纸' : '确认指令单') }}
+      <button class="btn btn-primary" :disabled="loading || !!loadError || !fileBlob || confirming || isConfirmed || !canEdit" @click="handleConfirm">
+        {{ confirming ? '确认中…' : isConfirmed ? '已确认' : (fileType === 'processing' ? '确认加工申请单' : fileType === 'drawing' ? '确认图纸' : '确认指令单') }}
       </button>
     </template>
   </dialog-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import VueOfficeExcel from '@vue-office/excel'
 import '@vue-office/excel/lib/index.css'
 import dialogModal from '@/components/dialogModal.vue'
 import { Session } from '@/utils/storage'
 import { ElMessage } from 'element-plus'
-import { designDrawingConfirm, designInstructionConfirm } from '@/api/design'
+import { confirmProcessingDocument, type ProcessingDocument, designDrawingConfirm, designInstructionConfirm } from '@/api/design'
 
 // ============================================================
 // Props / Emits
@@ -73,6 +73,9 @@ const props = defineProps<{
   /** 数据包ID */
   packageId?: number | null
   /** 版本ID（用于确认接口） */
+  archived?: boolean
+  expectedRevision?: number
+  expectedFileId?: string
   fileId?: number
   /** 是否已确认 */
   confirmed?: boolean
@@ -86,6 +89,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void
   (e: 'confirm-success'): void
+  (e: 'processing-confirmed', document: ProcessingDocument): void
 }>()
 
 // ============================================================
@@ -111,30 +115,21 @@ const confirming = ref(false)
 const isConfirmed = ref(props.confirmed ?? false)
 const canEdit = computed(() => props.canEdit !== false)
 
-// ============================================================
-// 计算属性
-// ============================================================
-
-const showConfirmBtn = computed(() => {
-  return props.fileType && props.orderId && props.packageId && props.fileId
-})
-
-// ============================================================
-// 方法
-// ============================================================
-
+let previewRequest = 0
 const onSheetSwitch = () => { }
 
-const loadFile = async () => {
-  if (!props.fileUrl) return
-  loading.value = true
+function resetPreview() {
+  ++previewRequest
+  loading.value = confirming.value = false
   loadError.value = ''
   fileBlob.value = null
-  if (fileBlobUrl.value) {
-    URL.revokeObjectURL(fileBlobUrl.value)
-    fileBlobUrl.value = ''
-  }
+  if (fileBlobUrl.value) URL.revokeObjectURL(fileBlobUrl.value)
+  fileBlobUrl.value = ''
+}
 
+const loadFile = async (ticket: number) => {
+  if (!props.fileUrl) return
+  loading.value = true
   try {
     const token = Session.get('token') || ''
     const url = props.fileUrl.startsWith('http')
@@ -147,32 +142,44 @@ const loadFile = async () => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
     const blob = await response.blob()
+    if (ticket !== previewRequest) return
     fileBlobUrl.value = URL.createObjectURL(blob)
     fileBlob.value = blob
   } catch (err: any) {
-    loadError.value = err?.message || '无法加载文件'
+    if (ticket === previewRequest) loadError.value = err?.message || '无法加载文件'
   } finally {
-    loading.value = false
+    if (ticket === previewRequest) loading.value = false
   }
 }
 
 const handleConfirm = async () => {
-  if (!canEdit.value || !props.orderId || !props.packageId || !props.fileId) return
+  if (confirming.value || !fileBlob.value || !visible.value || !canEdit.value || !props.orderId || !props.packageId || !props.fileId) return
+  if (props.fileType !== 'processing' && !props.expectedFileId) {
+    ElMessage.warning('请关闭并重新打开文档预览，获取最新文件版本')
+    return
+  }
+  const ticket = previewRequest
   confirming.value = true
   try {
-    if (props.fileType === 'drawing') {
-      await designDrawingConfirm(props.orderId!, props.packageId!, props.fileId!, props.productCategory!, props.batchId)
+    if (props.fileType === 'processing') {
+      if (!props.expectedRevision) return
+      const document = await confirmProcessingDocument(props.orderId, props.packageId, props.fileId, props.expectedRevision, props.batchId)
+      if (ticket !== previewRequest || props.fileId !== document.documentId) return
+      emit('processing-confirmed', document)
+    } else if (props.fileType === 'drawing') {
+      await designDrawingConfirm(props.orderId!, props.packageId!, props.fileId!, props.productCategory!, props.expectedFileId!, props.batchId)
     } else {
-      await designInstructionConfirm(props.orderId, props.packageId, props.fileId, props.batchId)
+      await designInstructionConfirm(props.orderId, props.packageId, props.fileId, props.expectedFileId!, props.batchId)
     }
+    if (ticket !== previewRequest) return
     isConfirmed.value = true
     visible.value = false
     ElMessage.success('确认成功')
     emit('confirm-success')
-  } catch {
-    ElMessage.error('确认失败，请重试')
+  } catch (error) {
+    if (ticket === previewRequest) ElMessage.error(error instanceof Error ? error.message : '文件确认失败，请重新打开文档预览')
   } finally {
-    confirming.value = false
+    if (ticket === previewRequest) confirming.value = false
   }
 }
 
@@ -180,20 +187,15 @@ const handleConfirm = async () => {
 // 监听
 // ============================================================
 
-watch(() => props.modelValue, (val) => {
-  if (val) {
+watch(() => [props.modelValue, props.fileUrl, props.fileId, props.expectedRevision, props.expectedFileId,
+  props.orderId, props.packageId, props.batchId] as const, () => {
+  resetPreview()
+  if (props.modelValue) {
     isConfirmed.value = props.confirmed ?? false
-    loadFile()
-  } else {
-    fileBlob.value = null
-    if (fileBlobUrl.value) {
-      URL.revokeObjectURL(fileBlobUrl.value)
-      fileBlobUrl.value = ''
-    }
-    loadError.value = ''
-    confirming.value = false
+    void loadFile(previewRequest)
   }
-})
+}, { immediate: true })
+onBeforeUnmount(resetPreview)
 
 watch(() => props.confirmed, (val) => {
   isConfirmed.value = val ?? false

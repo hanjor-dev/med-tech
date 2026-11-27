@@ -94,32 +94,13 @@
         <!-- 文档内容 -->
         <template v-else>
           <!-- 标签切换：指令单 / 图纸 -->
-          <div class="ddpd-tabs">
-            <button class="ddpd-tab" :class="{ 'ddpd-tab--active': activeTab === 'instruction' }"
-              @click="switchTab('instruction')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-              指令单
-              <span class="ddpd-tab__badge" v-if="currentData && activeTab === 'instruction'">{{ currentData.version
-                }}</span>
-              <span class="ddpd-tab__badge ddpd-tab__badge--amber"
-                v-else-if="pkgLatestInstr && activeTab === 'instruction'">{{ pkgLatestInstr.version }}</span>
-            </button>
-            <button class="ddpd-tab" :class="{ 'ddpd-tab--active': activeTab === 'drawing' }"
-              @click="switchTab('drawing')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-              图纸
-              <span class="ddpd-tab__badge ddpd-tab__badge--amber" v-if="drawData">{{ drawData.version }}</span>
-            </button>
-          </div>
+          <DocumentTabs :model-value="activeTab" label="生产文档"
+            :tabs="[
+              { value: 'instruction', label: '指令单', icon: Document,
+                badge: activeTab === 'instruction' ? (currentData ? currentData.version : pkgLatestInstr?.version) : undefined,
+                amber: !currentData },
+              { value: 'drawing', label: '图纸', icon: Picture, badge: drawData?.version, amber: true },
+            ]" @update:model-value="switchTab" />
 
           <!-- 图纸分类切换（仅在图纸tab显示） -->
           <div class="draw-category-switch" v-if="activeTab === 'drawing'">
@@ -142,126 +123,15 @@
             <!-- 指令单内容 -->
             <template v-else-if="activeTab === 'instruction'">
               <!-- 当前版本信息卡 -->
-              <div class="ddpd-version-card"
-                :class="activeTab === 'instruction' ? 'ddpd-version-card--instr' : 'ddpd-version-card--draw'"
-                style="position:relative">
-                <!-- 刷新遮罩 -->
-                <div v-if="instrRefreshing" class="ddpd-version-card__refreshing-overlay">
-                  <el-icon class="ddpd-version-card__refreshing-icon" :size="20">
-                    <Loading />
-                  </el-icon>
-                  <span>刷新中…</span>
-                </div>
-                <div class="ddpd-version-card__header">
-                  <div class="ddpd-version-card__badge">
-                    <span class="ddpd-version-card__badge-label">{{ activeTab === 'instruction' ? '指令单' : '图纸'
-                      }}</span>
-                    <span class="ddpd-version-card__badge-version">
-                      {{ (activeTab === 'instruction' ? pkgLatestInstr?.version : drawData?.version) || '—' }}
-                    </span>
-                  </div>
-                  <span class="ddpd-version-card__status"
-                    :class="(activeTab === 'instruction' ? pkgLatestInstr?.isConfirmed : drawData?.isConfirmed) ? 'ddpd-version-card__status--confirmed' : 'ddpd-version-card__status--pending'">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2.5">
-                      <polyline
-                        v-if="(activeTab === 'instruction' ? pkgLatestInstr?.isConfirmed : drawData?.isConfirmed)"
-                        points="20 6 9 17 4 12" />
-                      <circle v-else cx="12" cy="12" r="10" />
-                      <line
-                        v-if="!(activeTab === 'instruction' ? pkgLatestInstr?.isConfirmed : drawData?.isConfirmed)"
-                        x1="12" y1="8" x2="12" y2="12" />
-                      <line
-                        v-if="!(activeTab === 'instruction' ? pkgLatestInstr?.isConfirmed : drawData?.isConfirmed)"
-                        x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    {{ (activeTab === 'instruction' ? pkgLatestInstr?.isConfirmed : drawData?.isConfirmed) ? '已确认' :
-                      '待确认' }}
-                  </span>
-                </div>
-
-                <div class="ddpd-version-card__meta">
-                  <div class="ddpd-version-card__meta-item">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    <span>生成时间</span>
-                    <strong>{{ (activeTab === 'instruction' ? dayjs(pkgLatestInstr?.generateTime).format('YYYY-MM-DD HH: mm: ss') : dayjs(drawData?.generateTime).format('YYYY - MM - DD HH: mm: ss'))
-                      || '—' }}</strong>
-                  </div>
-                  <div class="ddpd-version-card__meta-item">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                    <span>文件ID</span>
-                    <strong class="ddpd-version-card__file-id">
-                      {{ (activeTab === 'instruction' ? pkgLatestInstr?.fileId : drawData?.fileId) || '—' }}
-                    </strong>
-                  </div>
-                </div>
-
-                <div class="ddpd-version-card__actions">
-                  <!-- 指令单上传区域 -->
-                  <div class="ddpd-version-card__upload" v-if="activeTab === 'instruction'">
-                    <input ref="uploadInstrInputRef" type="file" accept=".xlsx" style="display:none"
-                      @change="handleInstrUploadFileChange" />
-                    <button class="ddpd-action-btn ddpd-action-btn--upload" @click="triggerInstrUpload"
-                      :disabled="uploadingFile || !canEditDocuments">
-                      <el-icon v-if="uploadingFile" class="ddpd-action-btn__spin" :size="13">
-                        <Loading />
-                      </el-icon>
-                      <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
-                      {{ uploadingFile ? '上传中…' : '上传修订版' }}
-                    </button>
-                    <span class="ddpd-version-card__upload-hint" v-if="!pkgLatestInstr">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.5">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                      先生成指令单后再上传修订版
-                    </span>
-                    <span class="ddpd-version-card__upload-hint ddpd-version-card__upload-hint--success"
-                      v-else-if="lastUploadedInstrFileName">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="3">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      已上传：{{ lastUploadedInstrFileName }}
-                    </span>
-                  </div>
-
-                  <button class="ddpd-action-btn ddpd-action-btn--preview" @click="handlePreview"
-                    :disabled="!previewUrl">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    在线预览
-                  </button>
-                  <button class="ddpd-action-btn ddpd-action-btn--download" @click="handleDownload"
-                    :disabled="downloading">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    {{ downloading ? '下载中…' : '下载文件' }}
-                  </button>
-                </div>
-              </div>
+              <DocumentVersionCard label="指令单" :version="pkgLatestInstr?.version"
+                :confirmed="pkgLatestInstr?.isConfirmed" :refreshing="instrRefreshing"
+                :time="formatTime(pkgLatestInstr?.generateTime)" :file="pkgLatestInstr?.fileId"
+                show-upload :uploading="uploadingFile" :upload-disabled="uploadingFile || !canEditDocuments"
+                :upload-hint="pkgLatestInstr ? '' : '先生成指令单后再上传修订版'" :uploaded-name="lastUploadedInstrFileName"
+                :preview-disabled="!previewUrl" :downloading="downloading" :download-disabled="downloading"
+                @upload="triggerInstrUpload" @preview="handlePreview" @download="handleDownload">
+                <input ref="uploadInstrInputRef" type="file" accept=".xlsx" hidden @change="handleInstrUploadFileChange" />
+              </DocumentVersionCard>
             </template>
 
             <!-- 图纸加载中 -->
@@ -284,185 +154,22 @@
 
             <!-- 图纸内容 -->
             <div v-else-if="activeTab === 'drawing' && drawData" class="ddpd-drawing-content">
-              <div class="ddpd-version-card ddpd-version-card--draw" style="position:relative">
-                <!-- 刷新遮罩 -->
-                <div v-if="drawRefreshing" class="ddpd-version-card__refreshing-overlay">
-                  <el-icon class="ddpd-version-card__refreshing-icon" :size="20">
-                    <Loading />
-                  </el-icon>
-                  <span>刷新中…</span>
-                </div>
-                <div class="ddpd-version-card__header">
-                  <div class="ddpd-version-card__badge">
-                    <span class="ddpd-version-card__badge-label">图纸</span>
-                    <span class="ddpd-version-card__badge-version">{{ drawData?.version || '—' }}</span>
-                  </div>
-                  <span class="ddpd-version-card__status"
-                    :class="drawData?.isConfirmed ? 'ddpd-version-card__status--confirmed' : 'ddpd-version-card__status--pending'">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2.5">
-                      <polyline v-if="drawData?.isConfirmed" points="20 6 9 17 4 12" />
-                      <circle v-else cx="12" cy="12" r="10" />
-                      <line v-if="!drawData?.isConfirmed" x1="12" y1="8" x2="12" y2="12" />
-                      <line v-if="!drawData?.isConfirmed" x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    {{ drawData?.isConfirmed ? '已确认' : '待确认' }}
-                  </span>
-                </div>
-
-                <div class="ddpd-version-card__meta">
-                  <div class="ddpd-version-card__meta-item">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    <span>生成时间</span>
-                    <strong>{{ dayjs(drawData?.generateTime).format('YYYY-MM-DD HH:mm:ss') || '—' }}</strong>
-                  </div>
-                  <div class="ddpd-version-card__meta-item">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                    <span>文件ID</span>
-                    <strong class="ddpd-version-card__file-id">{{ drawData?.fileId || '—' }}</strong>
-                  </div>
-                </div>
-
-                <div class="ddpd-version-card__actions">
-                  <div class="ddpd-version-card__upload">
-                    <input ref="uploadDrawInputRef" type="file" accept=".xlsx" style="display:none"
-                      @change="handleDrawUploadFileChange" />
-                    <button class="ddpd-action-btn ddpd-action-btn--upload" @click="triggerDrawUpload"
-                      :disabled="uploadingDrawFile || !canEditDocuments">
-                      <el-icon v-if="uploadingDrawFile" class="ddpd-action-btn__spin" :size="13">
-                        <Loading />
-                      </el-icon>
-                      <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
-                      {{ uploadingDrawFile ? '上传中…' : '上传修订版' }}
-                    </button>
-                    <span class="ddpd-version-card__upload-hint" v-if="!drawData">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.5">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                      先生成图纸后再上传修订版
-                    </span>
-                    <span class="ddpd-version-card__upload-hint ddpd-version-card__upload-hint--success"
-                      v-else-if="lastUploadedDrawFileName">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      已上传：{{ lastUploadedDrawFileName }}
-                    </span>
-                  </div>
-
-                  <button class="ddpd-action-btn ddpd-action-btn--preview" @click="handlePreview"
-                    :disabled="!previewUrl">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    在线预览
-                  </button>
-                  <button class="ddpd-action-btn ddpd-action-btn--download" @click="handleDownload"
-                    :disabled="downloading">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    {{ downloading ? '下载中…' : '下载文件' }}
-                  </button>
-                </div>
-              </div>
+              <DocumentVersionCard label="图纸" drawing :version="drawData?.version"
+                :confirmed="drawData?.isConfirmed" :refreshing="drawRefreshing"
+                :time="formatTime(drawData?.generateTime)" :file="drawData?.fileId"
+                show-upload :uploading="uploadingDrawFile" :upload-disabled="uploadingDrawFile || !canEditDocuments"
+                :upload-hint="drawData ? '' : '先生成图纸后再上传修订版'" :uploaded-name="lastUploadedDrawFileName"
+                :preview-disabled="!previewUrl" :downloading="downloading" :download-disabled="downloading"
+                @upload="triggerDrawUpload" @preview="handlePreview" @download="handleDownload">
+                <input ref="uploadDrawInputRef" type="file" accept=".xlsx" hidden @change="handleDrawUploadFileChange" />
+              </DocumentVersionCard>
             </div>
 
             <!-- 指令单 / 图纸 共用版本历史 -->
-            <div class="ddpd-history" :class="{ 'ddpd-history--expanded': historyExpanded }"
-              v-if="activeTab === 'instruction' ? (pkgLatestInstr || instrLoading || instrHistory.length > 0) : (drawData || drawLoading || drawHistory.length > 0)">
-              <button class="ddpd-history__toggle" @click="historyExpanded = !historyExpanded">
-                <div class="ddpd-history__toggle-left">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                  版本历史
-                  <span class="ddpd-history__count">{{ historyList.length }}</span>
-                  <span class="ddpd-history__confirmed-hint" v-if="confirmedCount > 0">
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    {{ confirmedCount }} 个已确认
-                  </span>
-                </div>
-                <svg class="ddpd-history__chevron" :class="{ 'ddpd-history__chevron--up': historyExpanded }"
-                  width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-
-              <div class="ddpd-history__list" v-show="historyExpanded">
-                <div v-if="historyLoading" class="ddpd-history__loading">
-                  <el-icon :size="16" class="ddpd-history__loading-icon">
-                    <Loading />
-                  </el-icon>
-                  加载历史版本…
-                </div>
-                <div v-else-if="historyList.length === 0" class="ddpd-history__empty">
-                  暂无历史版本
-                </div>
-                <div v-else class="ddpd-history__items">
-                  <div v-for="(item, idx) in historyList" :key="item.id" class="ddpd-history-item"
-                    :class="{ 'ddpd-history-item--current': item.id === currentDocId, 'ddpd-history-item--confirmed': item.isConfirmed }"
-                    :style="{ animationDelay: `${idx * 0.04}s` }">
-                    <div class="ddpd-history-item__version">
-                      <span class="ddpd-history-item__ver-text">{{ item.version }}</span>
-                      <span class="ddpd-history-item__current-tag" v-if="item.id === currentDocId">当前</span>
-                      <span class="ddpd-history-item__confirmed-tag" v-if="item.isConfirmed">
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          stroke-width="3">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        已确认
-                      </span>
-                    </div>
-                    <div class="ddpd-history-item__time">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                      </svg>
-                      {{ dayjs(item.generateTime || item.revisedUploadTime).format('YYYY-MM-DD HH:mm:ss') || '—' }}
-                    </div>
-                    <div class="ddpd-history-item__actions">
-                      <button class="ddpd-history-item__btn" @click="handleHistoryPreview(item)" title="预览">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          stroke-width="2">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      </button>
-                      <button class="ddpd-history-item__btn" @click="handleHistoryDownload(item)" title="下载">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          stroke-width="2">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <polyline points="7 10 12 15 17 10" />
-                          <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <DocumentVersionHistory v-model:expanded="historyExpanded"
+              v-if="activeTab === 'instruction' ? (pkgLatestInstr || instrLoading || instrHistory.length) : (drawData || drawLoading || drawHistory.length)"
+              :history-list="historyList" :current-doc-id="currentDocId" :history-loading="historyLoading"
+              @preview="handleHistoryPreview" @download="handleHistoryDownload" />
           </template>
         </template>
       </main>
@@ -478,17 +185,20 @@
 
   <!-- xlsx 内嵌预览弹窗 -->
   <xlsx-preview-dialog v-model="showXlsxPreview" :file-url="xlsxPreviewUrl" :file-name="xlsxPreviewFileName"
-    :file-type="xlsxPreviewFileType" :order-id="props.orderId" :package-id="xlsxPreviewPackageId"
-    :file-id="xlsxPreviewFileId" :product-category="xlsxPreviewProductCategory" :confirmed="xlsxPreviewConfirmed"
+    :file-type="xlsxPreviewFileType" :order-id="props.order.id" :package-id="xlsxPreviewPackageId"
+    :expected-file-id="xlsxPreviewStorageId" :file-id="xlsxPreviewFileId" :product-category="xlsxPreviewProductCategory" :confirmed="xlsxPreviewConfirmed"
     :batch-id="isCurrentAppendPackage(selectedPackage) ? props.batchId : null"
-    :can-edit="canEditDocuments"
+    :can-edit="canEditDocuments && xlsxPreviewFileId === currentData?.id"
     @confirm-success="onXlsxConfirmSuccess" />
 </template>
 
 <script setup lang="ts">
+import DocumentVersionCard from './DocumentVersionCard.vue'
+import DocumentVersionHistory from './DocumentVersionHistory.vue'
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
+import { Document, Loading, Picture } from '@element-plus/icons-vue'
+import DocumentTabs from './DocumentTabs.vue'
 import dialogModal from '@/components/dialogModal.vue'
 import xlsxPreviewDialog from './xlsxPreviewDialog.vue'
 import {
@@ -501,6 +211,7 @@ import {
   designDrawingDownload,
   type PackageListItem,
 } from '@/api/design'
+import { initialProductionPackage, isLocalPhysical, packageEditable, packagesForProduction, type ProductionOrder } from '../productionBranch'
 import { Session } from '@/utils/storage'
 import dayjs from 'dayjs'
 import { getDictOptions } from '@/utils/dict'
@@ -531,9 +242,9 @@ interface DocVersionItem {
 
 const props = defineProps<{
   modelValue: boolean
-  orderId: number | null
-  orderCode?: string
+  order: ProductionOrder
   batchId?: number | null
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -551,7 +262,7 @@ const visible = computed({
 })
 
 const dialogTitle = '图纸和指令单'
-const subtitle = computed(() => props.orderCode ? `订单号：${props.orderCode}` : '')
+const subtitle = computed(() => props.order.orderCode ? `订单号：${props.order.orderCode}` : '')
 const width = '960px'
 
 // ============================================================
@@ -610,6 +321,7 @@ const showXlsxPreview = ref(false)
 const xlsxPreviewUrl = ref<string | null>(null)
 const xlsxPreviewFileName = ref('')
 const xlsxPreviewFileType = ref<'drawing' | 'instruction'>('instruction')
+const xlsxPreviewStorageId = ref<string>()
 const xlsxPreviewFileId = ref<number | undefined>(undefined)
 const xlsxPreviewConfirmed = ref(false)
 const xlsxPreviewProductCategory = ref<string | undefined>(undefined)
@@ -628,19 +340,14 @@ const isCurrentAppendPackage = (pkg: PackageListItem | null | undefined) =>
   Boolean(props.batchId && pkg?.batchId && Number(pkg.batchId) === Number(props.batchId))
 
 const canEditDocuments = computed(() => {
-  if (!selectedPackage.value) return false
-  // 追加模式下只有当前追加批次允许上传修订版，历史数据包只读。
-  if (props.batchId && !isCurrentAppendPackage(selectedPackage.value)) return false
+  if (!selectedPackage.value || props.readOnly) return false
+  if (isLocalPhysical(props.order) || props.batchId != null) return packageEditable(selectedPackage.value, props.batchId ?? null, 'canEditDocuments')
   return selectedPackage.value.canEditDocuments !== false
 })
 
-const historyList = computed(() =>
-  activeTab.value === 'instruction' ? instrHistory.value : drawHistory.value
-)
-
-const confirmedCount = computed(() =>
-  historyList.value.filter(i => i.isConfirmed === 1).length
-)
+const formatTime = (value?: string | null) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : ''
+const historyList = computed(() => (activeTab.value === 'instruction' ? instrHistory.value : drawHistory.value)
+  .map(item => ({ ...item, time: formatTime(item.generateTime || item.revisedUploadTime) })))
 
 // 当前文档 ID（用于历史列表中高亮"当前"版本）
 const currentDocId = computed(() =>
@@ -657,15 +364,18 @@ const pkgLatestConfirmedStatus = (pkg: PackageListItem): 'confirmed' | 'pending'
   const hasLatestDraws = pkg.latestDrawings?.length
   if (hasLatestInstr || hasLatestDraws) {
     const instrConfirmed = hasLatestInstr && pkg.latestInstruction!.isConfirmed === 1
-    const drawAllConfirmed = pkg.latestDrawings.every(d => d.isConfirmed === 1)
+    const drawAllConfirmed = !!hasLatestDraws && pkg.latestDrawings.every(d => d.isConfirmed === 1)
     return instrConfirmed && drawAllConfirmed ? 'confirmed' : 'pending'
   }
+  if (isLocalPhysical(props.order)) return 'pending'
   const latestInstrConfirmed = instrHistory.value[0]?.isConfirmed === 1
   const latestDrawConfirmed = drawHistory.value[0]?.isConfirmed === 1
   return latestInstrConfirmed && latestDrawConfirmed ? 'confirmed' : 'pending'
 }
 
 const selectDefaultPackage = () => {
+  if (isLocalPhysical(props.order)) return initialProductionPackage(packageList.value, props.batchId ?? null, null,
+    pkg => pkgLatestConfirmedStatus(pkg) === 'pending')
   const pendingPackages = packageList.value.filter(pkg => pkgLatestConfirmedStatus(pkg) === 'pending')
   // 优先处理原设计数据包；原数据包均已确认时，再处理追加数据包。
   return pendingPackages.find(pkg => !pkg.batchId) || pendingPackages[0] || packageList.value[0]
@@ -707,92 +417,75 @@ const loadPackages = async () => {
 }
 
 const loadPackageList = async () => {
-  if (!props.orderId) return
+  if (!props.order.id) return
   pkgLoading.value = true
   try {
-    // 追加模式也需要展示历史包，历史包由后端能力字段控制为只读。
-    const res = await designPackageList(props.orderId)
-    packageList.value = res ?? []
+    const res = await designPackageList(props.order.id)
+    packageList.value = packagesForProduction(props.order, res, 1)
+    if (selectedPackage.value) selectedPackage.value = packageList.value.find(pkg => pkg.id === selectedPackage.value?.id) ?? null
   } catch {
     packageList.value = []
+    selectedPackage.value = null
   } finally {
     pkgLoading.value = false
   }
 }
 
-const loadInstructionData = async (pkg: PackageListItem) => {
-  if (!props.orderId) return
+let documentRequest = 0
+
+const loadCurrentDocuments = async (refreshing = false) => {
+  const pkg = selectedPackage.value
+  if (!pkg) return
+  const ticket = ++documentRequest
+  const orderId = props.order.id
+  const batchId = isCurrentAppendPackage(pkg) ? props.batchId : null
+  const category = currentDrawCategory.value
+  const instruction = activeTab.value === 'instruction'
+  const latest = instruction ? pkgLatestInstr : drawData
+  const history = instruction ? instrHistory : drawHistory
+  instrLoading.value = instruction && !refreshing
+  drawLoading.value = !instruction && !refreshing
+  instrRefreshing.value = instruction && refreshing
+  drawRefreshing.value = !instruction && refreshing
+  historyLoading.value = true
+  if (!refreshing) {
+    latest.value = null
+    history.value = []
+  }
+  if (isLocalPhysical(props.order) && pkg.productionType == null) {
+    latest.value = null
+    history.value = []
+    instrLoading.value = drawLoading.value = false
+    instrRefreshing.value = drawRefreshing.value = false
+    historyLoading.value = false
+    return
+  }
   try {
-    const instrRes = await designInstructionPreviewUrl(props.orderId!, pkg.id, isCurrentAppendPackage(pkg) ? props.batchId : null).catch(() => null)
-    return instrRes?.data ?? instrRes ?? null
-  } catch {
-    return null
+    const [version, versions] = await Promise.all([
+      (instruction ? designInstructionPreviewUrl(orderId, pkg.id, batchId)
+        : designDrawingPreviewUrl(orderId, pkg.id, category, batchId)).catch(() => null),
+      (instruction ? designInstructionVersions(orderId, pkg.id, batchId)
+        : designDrawingVersions(orderId, pkg.id, category, batchId)).catch(() => []),
+    ])
+    if (ticket !== documentRequest || selectedPackage.value?.id !== pkg.id) return
+    latest.value = version?.data ?? version ?? null
+    history.value = versions?.data ?? versions ?? []
+  } finally {
+    if (ticket === documentRequest) {
+      instrLoading.value = false
+      drawLoading.value = false
+      instrRefreshing.value = false
+      drawRefreshing.value = false
+      historyLoading.value = false
+    }
   }
 }
-
-// ============================================================
-// 图纸数据加载
-// ============================================================
-
-const loadDrawingData = async (pkg: PackageListItem): Promise<DocVersionItem | null> => {
-  if (!props.orderId) return null
-  try {
-    const res = await designDrawingPreviewUrl(props.orderId!, pkg.id, currentDrawCategory.value, isCurrentAppendPackage(pkg) ? props.batchId : null).catch(() => null)
-    return (res?.data ?? res ?? null) as DocVersionItem | null
-  } catch {
-    return null
-  }
-}
-
-const loadDrawingHistory = async (pkg: PackageListItem): Promise<DocVersionItem[]> => {
-  if (!props.orderId) return []
-  try {
-    const res = await designDrawingVersions(props.orderId!, pkg.id, currentDrawCategory.value, isCurrentAppendPackage(pkg) ? props.batchId : null).catch(() => null)
-    const data = (res?.data ?? res ?? []) as DocVersionItem[]
-    drawHistory.value = data
-    return data
-  } catch {
-    drawHistory.value = []
-    return []
-  }
-}
-
-const loadInstructionHistory = async (pkg: PackageListItem): Promise<DocVersionItem[]> => {
-  if (!props.orderId) return []
-  try {
-    const instrRes = await designInstructionVersions(props.orderId, pkg.id, isCurrentAppendPackage(pkg) ? props.batchId : null).catch(() => null)
-    const data = (instrRes?.data ?? instrRes ?? []) as DocVersionItem[]
-    instrHistory.value = data
-    return data
-  } catch {
-    instrHistory.value = []
-    return []
-  }
-}
-
-// ============================================================
-// 图纸分类切换
-// ============================================================
 
 const switchDrawCategory = async (category: string) => {
   if (currentDrawCategory.value === category) return
   currentDrawCategory.value = category
   historyExpanded.value = false
-  if (!selectedPackage.value) return
-  drawLoading.value = true
-  historyLoading.value = true
-  try {
-    const data = await loadDrawingData(selectedPackage.value)
-    drawData.value = data
-    if (data) {
-      await loadDrawingHistory(selectedPackage.value)
-    } else {
-      drawHistory.value = []
-    }
-  } finally {
-    drawLoading.value = false
-    historyLoading.value = false
-  }
+  await loadCurrentDocuments()
 }
 
 const getFirstAvailableDrawingCategory = (pkg: PackageListItem) => {
@@ -815,56 +508,19 @@ const selectPackage = async (pkg: PackageListItem) => {
   selectedPackage.value = pkg
   activeTab.value = 'instruction'
   historyExpanded.value = false
-  instrLoading.value = true
-  historyLoading.value = true
-  try {
-    const [instrData, historyData] = await Promise.all([
-      loadInstructionData(pkg),
-      loadInstructionHistory(pkg),
-    ])
-    pkgLatestInstr.value = instrData
-  } finally {
-    instrLoading.value = false
-    historyLoading.value = false
-  }
+  drawData.value = null
+  drawHistory.value = []
+  lastUploadedInstrFileName.value = ''
+  lastUploadedDrawFileName.value = ''
+  await loadCurrentDocuments()
 }
 
-// ============================================================
-// 操作
-// ============================================================
-
 const switchTab = async (tab: 'instruction' | 'drawing') => {
-  if (activeTab.value === tab) return
+  if (activeTab.value === tab || !selectedPackage.value) return
   activeTab.value = tab
-  if (!selectedPackage.value) return
-  if (tab === 'drawing') {
-    currentDrawCategory.value = getFirstAvailableDrawingCategory(selectedPackage.value)
-    drawLoading.value = true
-    historyLoading.value = true
-    try {
-      const data = await loadDrawingData(selectedPackage.value)
-      drawData.value = data
-      if (data) {
-        await loadDrawingHistory(selectedPackage.value)
-      } else {
-        drawHistory.value = []
-      }
-    } finally {
-      drawLoading.value = false
-      historyLoading.value = false
-    }
-  } else {
-    instrLoading.value = true
-    historyLoading.value = true
-    try {
-      const instrData = await loadInstructionData(selectedPackage.value)
-      pkgLatestInstr.value = instrData
-      await loadInstructionHistory(selectedPackage.value)
-    } finally {
-      instrLoading.value = false
-      historyLoading.value = false
-    }
-  }
+  if (tab === 'drawing') currentDrawCategory.value = getFirstAvailableDrawingCategory(selectedPackage.value)
+  historyExpanded.value = false
+  await loadCurrentDocuments()
 }
 
 const handlePreview = () => {
@@ -877,7 +533,8 @@ const handlePreview = () => {
   if (url.endsWith('.xlsx') || url.includes('.xlsx')) {
     xlsxPreviewUrl.value = url
     xlsxPreviewFileType.value = activeTab.value === 'drawing' ? 'drawing' : 'instruction'
-    xlsxPreviewFileName.value = `${activeTab.value === 'drawing' ? '图纸' : '指令单'} ${pkgLatestInstr.value?.version || ''}`
+    xlsxPreviewFileName.value = `${activeTab.value === 'drawing' ? '图纸' : '指令单'} ${currentData.value?.version || ''}`
+    xlsxPreviewStorageId.value = currentData.value?.fileId ?? undefined
     xlsxPreviewFileId.value = currentData.value?.id
     xlsxPreviewConfirmed.value = currentData.value?.isConfirmed === 1
     xlsxPreviewProductCategory.value = activeTab.value === 'drawing' ? currentDrawCategory.value : undefined
@@ -888,7 +545,7 @@ const handlePreview = () => {
 }
 
 const handleDownload = () => {
-  if (!selectedPackage.value || !props.orderId) {
+  if (!selectedPackage.value || !props.order.id) {
     ElMessage.warning('数据包或订单信息不可用')
     return
   }
@@ -931,6 +588,7 @@ const handleHistoryPreview = (item: DocVersionItem) => {
     xlsxPreviewUrl.value = url
     xlsxPreviewFileType.value = activeTab.value === 'drawing' ? 'drawing' : 'instruction'
     xlsxPreviewFileName.value = `版本 ${item.version}`
+    xlsxPreviewStorageId.value = item.revisedFileId || item.templateFileId || undefined
     xlsxPreviewFileId.value = item.id
     xlsxPreviewConfirmed.value = item.isConfirmed === 1
     xlsxPreviewProductCategory.value = activeTab.value === 'drawing' ? currentDrawCategory.value : undefined
@@ -954,42 +612,9 @@ const handleHistoryDownload = (item: DocVersionItem) => {
 }
 
 const onXlsxConfirmSuccess = async () => {
-  const current = currentData.value
-  if (current) {
-    current.isConfirmed = 1
-    current.confirmTime = new Date().toISOString()
-  }
-  // 同步更新左侧数据包列表的确认状态
-  if (selectedPackage.value) {
-    const pkg = packageList.value.find(p => p.id === selectedPackage.value!.id)
-    if (pkg) {
-      if (xlsxPreviewFileType.value === 'drawing') {
-        pkg.latestDrawings.forEach(d => {
-          d.isConfirmed = 1
-          d.confirmTime = new Date().toISOString()
-        })
-      } else {
-        if (pkg.latestInstruction) {
-          pkg.latestInstruction.isConfirmed = 1
-          pkg.latestInstruction.confirmTime = new Date().toISOString()
-        }
-      }
-    }
-  }
-  // 同步更新图纸数据
-  if (xlsxPreviewFileType.value === 'drawing') {
-    if (drawData.value) {
-      drawData.value.isConfirmed = 1
-      drawData.value.confirmTime = new Date().toISOString()
-    }
-  }
-  if (selectedPackage.value) {
-    if (xlsxPreviewFileType.value === 'instruction') {
-      await loadInstructionHistory(selectedPackage.value)
-    } else {
-      await loadDrawingHistory(selectedPackage.value)
-    }
-  }
+  emit('refresh')
+  await loadPackageList()
+  await loadCurrentDocuments(true)
 }
 
 // ─── 上传修订版：指令单 ──────────────────────────────────────
@@ -1006,15 +631,17 @@ const triggerInstrUpload = () => {
 const handleInstrUploadFileChange = async (e: Event) => {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file || !selectedPackage.value || !pkgLatestInstr.value) return
+  if (!file || !canEditDocuments.value || !selectedPackage.value || !pkgLatestInstr.value) return
+  const packageId = selectedPackage.value.id
   const formData = new FormData()
   uploadingFile.value = true
   lastUploadedInstrFileName.value = ''
   try {
     const token = Session.get('token') || ''
+    formData.append('expectedFileId', pkgLatestInstr.value.fileId || '')
     formData.append('file', file)
     const res = await fetch(
-      `/yi/design/workorder/${props.orderId}/package/${selectedPackage.value.id}/instruction/upload-revised/${pkgLatestInstr.value.id}${isCurrentAppendPackage(selectedPackage.value) ? `?batchId=${props.batchId}` : ''}`,
+      `/yi/design/workorder/${props.order.id}/package/${selectedPackage.value.id}/instruction/upload-revised/${pkgLatestInstr.value.id}${isCurrentAppendPackage(selectedPackage.value) ? `?batchId=${props.batchId}` : ''}`,
       {
         method: 'POST',
         headers: { 'satoken': token },
@@ -1024,19 +651,14 @@ const handleInstrUploadFileChange = async (e: Event) => {
     const data = await res.json()
 
     if (data?.code === 200 || data?.code === 0) {
-      lastUploadedInstrFileName.value = file.name
+      emit('refresh')
       ElMessage.success(`上传成功：${file.name}`)
       await loadPackageList()
-      instrRefreshing.value = true
-      try {
-        const [instrData, historyData] = await Promise.all([
-          loadInstructionData(selectedPackage.value),
-          loadInstructionHistory(selectedPackage.value),
-        ])
-        pkgLatestInstr.value = instrData
-      } finally {
-        instrRefreshing.value = false
+      if (selectedPackage.value?.id === packageId && activeTab.value === 'instruction') {
+        lastUploadedInstrFileName.value = file.name
+        await loadCurrentDocuments(true)
       }
+
     } else {
       ElMessage.error(data?.msg || '上传失败')
     }
@@ -1065,17 +687,20 @@ const triggerDrawUpload = () => {
 const handleDrawUploadFileChange = async (e: Event) => {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file || !selectedPackage.value || !drawData.value) return
+  if (!file || !canEditDocuments.value || !selectedPackage.value || !drawData.value) return
+  const packageId = selectedPackage.value.id
+  const category = currentDrawCategory.value
 
   uploadingDrawFile.value = true
   lastUploadedDrawFileName.value = ''
   try {
     const token = Session.get('token') || ''
     const formData = new FormData()
+    formData.append('expectedFileId', drawData.value.fileId || '')
     formData.append('file', file)
     formData.append('productCategory', currentDrawCategory.value)
     const res = await fetch(
-      `/yi/design/workorder/${props.orderId}/package/${selectedPackage.value.id}/drawing/upload-revised/${drawData.value.id}?productCategory=${currentDrawCategory.value}${isCurrentAppendPackage(selectedPackage.value) ? `&batchId=${props.batchId}` : ''}`,
+      `/yi/design/workorder/${props.order.id}/package/${selectedPackage.value.id}/drawing/upload-revised/${drawData.value.id}?productCategory=${currentDrawCategory.value}${isCurrentAppendPackage(selectedPackage.value) ? `&batchId=${props.batchId}` : ''}`,
       {
         method: 'POST',
         headers: { 'satoken': token },
@@ -1085,19 +710,14 @@ const handleDrawUploadFileChange = async (e: Event) => {
     const data = await res.json()
 
     if (data?.code === 200 || data?.code === 0) {
-      lastUploadedDrawFileName.value = file.name
+      emit('refresh')
       ElMessage.success(`上传成功：${file.name}`)
       await loadPackageList()
-      drawRefreshing.value = true
-      try {
-        const [drawDataRes, historyData] = await Promise.all([
-          loadDrawingData(selectedPackage.value),
-          loadDrawingHistory(selectedPackage.value),
-        ])
-        drawData.value = drawDataRes
-      } finally {
-        drawRefreshing.value = false
+      if (selectedPackage.value?.id === packageId && activeTab.value === 'drawing' && currentDrawCategory.value === category) {
+        lastUploadedDrawFileName.value = file.name
+        await loadCurrentDocuments(true)
       }
+
     } else {
       ElMessage.error(data?.msg || '上传失败')
     }
@@ -1260,72 +880,6 @@ watch(() => props.modelValue, async (val) => {
   }
 }
 
-// ─── Tabs ───────────────────────────────────────────────────────────────
-.ddpd-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: var(--surface-raised);
-  border-radius: 10px;
-  margin-bottom: 14px;
-  flex-shrink: 0;
-}
-
-.ddpd-tab {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border: none;
-  background: transparent;
-  border-radius: 7px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text-muted);
-  transition: all 0.2s ease;
-
-  svg {
-    transition: color 0.2s;
-    flex-shrink: 0;
-  }
-
-  &:hover {
-    background: var(--surface);
-    color: var(--text-mid);
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
-  }
-
-  &--active {
-    background: var(--surface);
-    color: var(--blue);
-    box-shadow: 0 2px 8px rgba(30, 111, 217, 0.12), 0 1px 2px rgba(15, 23, 42, 0.05);
-
-    svg {
-      color: var(--blue);
-    }
-  }
-
-  &__badge {
-    font-family: 'DM Mono', 'Fira Code', monospace;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--blue);
-    background: var(--blue-light);
-    padding: 1px 5px;
-    border-radius: 4px;
-    letter-spacing: 0.3px;
-
-    &--amber {
-      color: #92400e;
-      background: var(--amber-light);
-    }
-  }
-}
-
 // ─── Drawing Category Switch ─────────────────────────────────────────────────
 .draw-category-switch {
   display: flex;
@@ -1372,509 +926,6 @@ watch(() => props.modelValue, async (val) => {
     background: rgba(0, 0, 0, 0.06);
     padding: 1px 5px;
     border-radius: 4px;
-  }
-}
-
-// ─── Version Card ───────────────────────────────────────────────────────
-.ddpd-version-card {
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 12px;
-  animation: ddpdFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
-
-  &--instr {
-    border: 1.5px solid var(--blue-light);
-    background: linear-gradient(135deg, var(--blue-pale) 0%, #e8f2ff 100%);
-    box-shadow: 0 2px 12px rgba(30, 111, 217, 0.08);
-  }
-
-  &--draw {
-    border: 1.5px solid var(--amber-light);
-    background: linear-gradient(135deg, #fffbf0 0%, #fff9e6 100%);
-    box-shadow: 0 2px 12px rgba(217, 119, 6, 0.08);
-  }
-
-  &__refreshing-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(4px);
-    border-radius: 12px;
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 500;
-  }
-
-  &__refreshing-icon {
-    animation: spin 0.8s linear infinite;
-    color: var(--blue);
-  }
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 18px 10px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  }
-
-  &__badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  &__badge-label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-faint);
-  }
-
-  &__badge-version {
-    font-family: 'DM Mono', 'Fira Code', monospace;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--blue-dark);
-
-    .ddpd-version-card--draw & {
-      color: #92400e;
-    }
-  }
-
-  &__status {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 9999px;
-
-    &--pending {
-      background: var(--amber-light);
-      color: #92400e;
-    }
-
-    &--confirmed {
-      background: var(--success-light);
-      color: #065f46;
-    }
-  }
-
-  &__meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 10px 18px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  }
-
-  &__meta-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 11px;
-    color: var(--text-muted);
-
-    svg {
-      color: var(--text-faint);
-      flex-shrink: 0;
-    }
-
-    span {
-      flex-shrink: 0;
-    }
-
-    strong {
-      font-weight: 600;
-      color: var(--text-mid);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  &__file-id {
-    font-family: 'DM Mono', 'Fira Code', monospace;
-    font-size: 10.5px !important;
-    color: var(--blue) !important;
-  }
-
-  &__actions {
-    display: flex;
-    gap: 10px;
-    padding: 12px 18px;
-    flex-wrap: wrap;
-  }
-
-  &__upload {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  &__upload-hint {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 10.5px;
-    color: var(--text-faint);
-
-    svg {
-      flex-shrink: 0;
-    }
-
-    &--success {
-      color: var(--success);
-    }
-  }
-}
-
-// ─── Action Buttons ──────────────────────────────────────────────────────
-.ddpd-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 9px 16px;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-
-  &__spin {
-    animation: spin 0.8s linear infinite;
-  }
-
-  &--upload {
-    background: white;
-    color: var(--text-mid);
-    border: 1.5px solid var(--border-mid);
-
-    svg {
-      color: var(--text-muted);
-      transition: color 0.2s;
-    }
-
-    &:hover {
-      border-color: var(--blue-mid);
-      color: var(--blue);
-      background: var(--blue-pale);
-      box-shadow: 0 2px 8px rgba(30, 111, 217, 0.08);
-
-      svg {
-        color: var(--blue);
-      }
-    }
-  }
-
-  &--preview {
-    background: var(--blue);
-    color: white;
-    border: none;
-    box-shadow: 0 2px 8px rgba(30, 111, 217, 0.22);
-
-    &:hover {
-      background: var(--blue-dark);
-      box-shadow: 0 4px 16px rgba(30, 111, 217, 0.3);
-      transform: translateY(-1px);
-    }
-
-    &:active {
-      transform: translateY(0);
-      box-shadow: 0 2px 8px rgba(30, 111, 217, 0.22);
-    }
-  }
-
-  &--download {
-    background: white;
-    color: var(--text-mid);
-    border: 1.5px solid var(--border-mid);
-
-    svg {
-      color: var(--text-muted);
-      transition: color 0.2s;
-    }
-
-    &:hover {
-      border-color: var(--blue-mid);
-      color: var(--blue);
-      background: var(--blue-pale);
-      box-shadow: 0 2px 8px rgba(30, 111, 217, 0.08);
-
-      svg {
-        color: var(--blue);
-      }
-    }
-  }
-}
-
-// ─── History ────────────────────────────────────────────────────────────
-.ddpd-history {
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--surface);
-  transition: border-color 0.2s;
-  animation: ddpdFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
-
-  &:hover {
-    border-color: var(--border-mid);
-  }
-
-  &--expanded {
-    border-color: var(--blue-light);
-  }
-
-  &__toggle {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-    transition: background 0.15s;
-
-    &:hover {
-      background: var(--surface-raised);
-    }
-  }
-
-  &__toggle-left {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11.5px;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-
-    svg {
-      color: var(--text-faint);
-      flex-shrink: 0;
-    }
-  }
-
-  &__count {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    font-weight: 700;
-    background: var(--border);
-    color: var(--text-muted);
-    padding: 1px 6px;
-    border-radius: 9999px;
-  }
-
-  &__confirmed-hint {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--success);
-    background: var(--success-light);
-    padding: 1px 6px;
-    border-radius: 9999px;
-    text-transform: none;
-    letter-spacing: 0;
-
-    svg {
-      color: var(--success);
-    }
-  }
-
-  &__chevron {
-    color: var(--text-faint);
-    transition: transform 0.2s ease;
-    flex-shrink: 0;
-
-    &--up {
-      transform: rotate(180deg);
-    }
-  }
-
-  &__list {
-    border-top: 1px solid var(--border);
-    max-height: 260px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-mid) transparent;
-  }
-
-  &__loading,
-  &__empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 20px;
-    font-size: 12px;
-    color: var(--text-faint);
-
-    &-icon {
-      animation: spin 0.8s linear infinite;
-      color: var(--blue);
-    }
-  }
-
-  &__items {
-    padding: 6px 0;
-  }
-}
-
-// ─── History Item ───────────────────────────────────────────────────────
-.ddpd-history-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  transition: background 0.15s;
-  animation: ddpdFadeIn 0.25s ease both;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 2px;
-    height: 0;
-    background: var(--blue);
-    border-radius: 0 1px 1px 0;
-    transition: height 0.15s;
-  }
-
-  &:hover {
-    background: var(--surface-raised);
-
-    &::before {
-      height: 60%;
-    }
-  }
-
-  &--current {
-    background: var(--blue-pale);
-
-    &::before {
-      height: 70%;
-      background: var(--blue);
-    }
-  }
-
-  &--confirmed {
-    &::before {
-      background: var(--success);
-    }
-  }
-
-  &__version {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    min-width: 72px;
-  }
-
-  &__ver-text {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-mid);
-  }
-
-  &__current-tag {
-    font-size: 9.5px;
-    font-weight: 700;
-    color: white;
-    background: var(--blue);
-    padding: 1px 5px;
-    border-radius: 3px;
-    letter-spacing: 0.3px;
-  }
-
-  &__confirmed-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    font-size: 9.5px;
-    font-weight: 700;
-    color: var(--success);
-    background: var(--success-light);
-    padding: 1px 5px;
-    border-radius: 3px;
-  }
-
-  &__time {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: var(--text-faint);
-
-    svg {
-      flex-shrink: 0;
-    }
-  }
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    opacity: 0;
-    transition: opacity 0.15s;
-
-    .ddpd-history-item:hover & {
-      opacity: 1;
-    }
-
-    .ddpd-history-item--current & {
-      opacity: 1;
-    }
-  }
-
-  &__btn {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: var(--text-muted);
-    transition: all 0.15s;
-    padding: 0;
-
-    &:hover {
-      border-color: var(--blue-light);
-      color: var(--blue);
-      background: var(--blue-pale);
-    }
   }
 }
 

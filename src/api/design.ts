@@ -23,6 +23,9 @@ export interface DesignWorkorderQuery {
   sortOrder?: 'ASC' | 'DESC'
 }
 
+/** 本地实体数据包的生产类型。1 为医疗器械，2 为非医疗器械。 */
+export type ProductionType = 1 | 2
+
 /** 设计工单列表项 VO */
 export interface DesignWorkorderVO {
   id: number
@@ -33,6 +36,9 @@ export interface DesignWorkorderVO {
   businessTypeName: string
   orderType: number
   orderTypeName: string
+  hasUnassignedPackage?: boolean
+  productionTypes?: (ProductionType | 3)[]
+  medicalPackageAllowed?: boolean
   needsPhysicalDelivery: number | null
   needsPhysicalDeliveryName: string
   patientName: string
@@ -120,6 +126,7 @@ export interface DesignRebuildProjectItem {
 export interface DesignSubmitCheckVO {
   hasPackage: boolean
   hasPrintInfo: boolean
+  hasProcessingApplication?: boolean
   hasInstruction: boolean
   hasDrawing: boolean
   hasModel: boolean
@@ -187,6 +194,7 @@ export interface PackageListItem {
   orderId: number
   orderCode: string
   packageCode: string
+  productionType?: ProductionType | 3 | null
   packageSeq: number
   fileId: string
   fileName: string
@@ -195,6 +203,8 @@ export interface PackageListItem {
   fileCount: number
   uploadTime: string
   files: PackageFileItem[]
+  processingStatus?: string | null
+  processingRevision?: number | null
   processingApplication?: ProcessingDocument | null
   latestInstruction: PackageInstructionVO | null
   latestDrawings: PackageDrawingVO[]
@@ -257,6 +267,9 @@ export interface DesignWorkorderDetailVO {
   rejectReason: string | null
   orderType: number
   orderTypeName: string
+  hasUnassignedPackage?: boolean
+  productionTypes?: (ProductionType | 3)[]
+  medicalPackageAllowed?: boolean
   needsPhysicalDelivery: number | null
   needsPhysicalDeliveryName: string
   businessType: string
@@ -379,29 +392,41 @@ export async function designPrintInfoOptionsWithBatch(orderId: number, packageId
 }
 
 export interface ProcessingDocument {
+  confirmed: boolean
   documentId: number
   revision: number
+  source?: 'GENERATED' | 'MANUAL'
+  generatedAt?: string | null
+  operatorName?: string | null
   fileName: string
   previewUrl: string
   downloadUrl?: string | null
 }
 
 export interface ProcessingItem {
+  materialName?: string | null
+  groupKey?: string | null
+  productCategory?: string | null
+  productCategoryName?: string | null
+  productId?: number | null
+  productName?: string | null
+  specId?: number | null
+  specName?: string | null
+  colorCode?: string | null
+  colorName?: string | null
   id?: number | null
   packageFileId: number | null
   materialCode: string | null
   quantity: number | null
-  remark: string | null
+  remark?: string | null
 }
 
-export interface ProcessingDraft {
-  deliveryTime: string | null
+export interface ProcessingForm {
   processingRequirements: string | null
-  postalAddress: string | null
   items: ProcessingItem[]
 }
 
-export interface ProcessingApplication extends ProcessingDraft {
+export interface ProcessingApplication extends ProcessingForm {
   id?: number | null
   revision: number
   status: 'DRAFT' | 'ARCHIVED'
@@ -409,11 +434,18 @@ export interface ProcessingApplication extends ProcessingDraft {
   packageId: number
   packageCode: string
   batchId?: number | null
+  deliveryTime: string | null
+  postalAddress: string | null
+  isPostal: number | null
+  headerNeedsConfirmation: boolean
   header: {
     orderCode: string; orgName: string; areaName: string; operatorName: string
     orderDate: string; hospitalName: string; operatorPhone: string; productName: string
-    preparerName: string; preparedDate: string
+    preparerName: string; preparedDate: string; isUrgent?: number | null
   }
+  products?: Array<{ id: number; productName: string; category: string; categoryName: string; specs: Array<{ id: number; specName: string }> }>
+  materials?: Array<{ code: string; name: string; isDefault?: boolean }>
+  colorGroups?: Array<{ categoryCode: string | null; colors: Array<{ code: string; name: string; isDefault?: boolean }> }>
   materialOptions: Array<{ code: string; name: string }>
   files: Array<{ id: number; fileName: string; fileExt: string; productionModel: boolean }>
   editable: boolean
@@ -427,7 +459,7 @@ export function getProcessingApplication(orderId: number, packageId: number, bat
   return $axios.get<unknown, ProcessingApplication>(processingPath(orderId, packageId), { params: batchId == null ? undefined : { batchId } })
 }
 
-export function saveProcessingApplication(orderId: number, packageId: number, batchId: number | null, draft: ProcessingDraft & { expectedRevision: number }) {
+export function saveProcessingApplication(orderId: number, packageId: number, batchId: number | null, draft: ProcessingForm & { expectedRevision: number; confirmedHeader: ProcessingApplication['header'] }) {
   return $axios.post<unknown, ProcessingApplication>(processingPath(orderId, packageId), draft, { params: batchId == null ? undefined : { batchId } })
 }
 
@@ -435,9 +467,29 @@ export function generateProcessingDocument(orderId: number, packageId: number, b
   return $axios.post<unknown, ProcessingDocument>(processingPath(orderId, packageId) + '/document', { expectedRevision }, { params: batchId == null ? undefined : { batchId } })
 }
 
+export function confirmProcessingDocument(orderId: number, packageId: number, documentId: number, expectedRevision: number, batchId?: number | null) {
+  return $axios.post<unknown, ProcessingDocument>(processingPath(orderId, packageId) + `/document/${documentId}/confirm`, { expectedRevision }, { params: batchId == null ? undefined : { batchId } })
+}
+
+export function listProcessingDocuments(orderId: number, packageId: number, batchId: number | null) {
+  return $axios.get<unknown, ProcessingDocument[]>(processingPath(orderId, packageId) + '/documents', {
+    params: batchId == null ? undefined : { batchId },
+  })
+}
+
+export function uploadProcessingRevision(orderId: number, packageId: number, batchId: number | null, expectedRevision: number, file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('expectedRevision', String(expectedRevision))
+  return $axios.post<unknown, ProcessingDocument>(processingPath(orderId, packageId) + '/document/revision', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    params: batchId == null ? undefined : { batchId },
+  })
+}
+
 export async function downloadProcessingDocument(orderId: number, packageId: number, doc: ProcessingDocument) {
   const response = await fetch('/yi' + processingPath(orderId, packageId) + `/document/${doc.documentId}/download`, {
-    headers: { Authorization: `Bearer ${Session.get('token') || ''}`, ...buildSignHeaders() },
+    headers: { satoken: Session.get('token') || '', ...buildSignHeaders() },
   })
   if (response.headers.get('content-type')?.includes('json')) {
     throw new Error((await response.json()).message || '下载加工申请单失败')
@@ -669,8 +721,8 @@ export async function designReportDelete(id: string, orderId: number): Promise<v
  * 确认图纸
  * POST /api/design/workorder/{orderId}/package/{packageId}/drawing/confirm/{drawId}?productCategory={category}
  */
-export async function designDrawingConfirm(orderId: number, packageId: number, drawId: number, productCategory: string, batchId?: number | null): Promise<void> {
-  await $axios(`/design/workorder/${orderId}/package/${packageId}/drawing/confirm/${drawId}?productCategory=${productCategory}${batchId ? `&batchId=${batchId}` : ''}`, {
+export async function designDrawingConfirm(orderId: number, packageId: number, drawId: number, productCategory: string, expectedFileId: string, batchId?: number | null): Promise<void> {
+  await $axios(`/design/workorder/${orderId}/package/${packageId}/drawing/confirm/${drawId}?expectedFileId=${encodeURIComponent(expectedFileId)}&productCategory=${productCategory}${batchId ? `&batchId=${batchId}` : ''}`, {
     method: 'post',
   })
 }
@@ -679,8 +731,8 @@ export async function designDrawingConfirm(orderId: number, packageId: number, d
  * 确认指令单
  * POST /api/design/workorder/{orderId}/package/{packageId}/instruction/confirm/{instrId}
  */
-export async function designInstructionConfirm(orderId: number, packageId: number, instrId: number, batchId?: number | null): Promise<void> {
-  await $axios(`/design/workorder/${orderId}/package/${packageId}/instruction/confirm/${instrId}${batchId ? `?batchId=${batchId}` : ''}`, {
+export async function designInstructionConfirm(orderId: number, packageId: number, instrId: number, expectedFileId: string, batchId?: number | null): Promise<void> {
+  await $axios(`/design/workorder/${orderId}/package/${packageId}/instruction/confirm/${instrId}?expectedFileId=${encodeURIComponent(expectedFileId)}${batchId ? `&batchId=${batchId}` : ''}`, {
     method: 'post',
   })
 }

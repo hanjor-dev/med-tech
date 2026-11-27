@@ -4,10 +4,17 @@
  */
 import type { UploadFile } from 'element-plus'
 
+interface UploadedFile {
+  id?: number | string
+  fileId?: number | string
+  packageSeq?: number
+  canDelete?: boolean
+}
+
 export interface FileUploadResponse {
   code?: number
   message?: string
-  data?: { id?: number | string; fileId?: number | string } | Array<{ id?: number | string; fileId?: number | string }>
+  data?: UploadedFile | UploadedFile[]
 }
 
 export type FileMap = Record<string, FileItem[]>
@@ -71,6 +78,8 @@ export interface FileTypeConfig {
   uploadFileField?: string
   /** 上传 URL 额外查询参数（如 { orderId }），会自动拼入 URL */
   uploadExtraParams?: Record<string, string | number | undefined>
+  /** 从单文件上传回执保存业务记录 ID 等文件属性。 */
+  mapSingleUploadResult?: (result: UploadedFile) => Partial<FileItem>
   /** 批量上传成功后自动调用的钩子（如关联操作） */
   onBatchUploadDone?: (fileIds: string[], extra?: Record<string, any>) => Promise<void>
   /** 初始化已有文件（返回文件列表，自动标记 isExisting=true） */
