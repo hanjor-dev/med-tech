@@ -43,12 +43,13 @@ export function usesProcessingApplication(order: OrderKind, pkg?: Pick<Productio
 type RouteOrder = OrderKind & Pick<ProductionOrder, 'productionTypes' | 'medicalPackageAllowed' | 'hasUnassignedPackage'>
 
 function allowsUnassigned(order: RouteOrder, type: ProductionType, hasMedical: boolean) {
-  return order.medicalPackageAllowed === true || (type === 2 && !hasMedical)
+  return (order.orderType === 1 && order.medicalPackageAllowed === true) || (type === 2 && !hasMedical)
 }
 
 export function packagesForProduction<T extends ProductionPackage>(order: RouteOrder & { id?: number }, packages: T[], type: ProductionType): T[] {
   const own = packages.filter(pkg => order.id == null || pkg.orderId == null || pkg.orderId === order.id)
   if (!isLocalPhysical(order)) return type === 1 ? own : []
+  if (type === 1 && order.orderType !== 1) return []
   const hasMedical = order.productionTypes?.some(t => t === 1 || t === 3)
     || own.some(pkg => pkg.batchStatus !== 'CANCELLED' && (pkg.batchId == null || pkg.batchStatus != null)
       && (pkg.productionType === 1 || pkg.productionType === 3))
@@ -92,7 +93,8 @@ export function productionTypesForOrder(row: MenuOrder): ProductionType[] {
   const active = row.packageList?.filter(pkg => pkg.batchStatus !== 'CANCELLED' && (pkg.batchId == null || pkg.batchStatus != null))
   const types = active?.length ? active.map(pkg => pkg.productionType) : row.productionTypes ?? []
   const unassigned = active?.some(pkg => pkg.productionType == null) || row.hasUnassignedPackage === true
-  return ([1, 2] as const).filter(type => types.includes(type) || (unassigned
+  const candidates: ProductionType[] = row.orderType === 1 ? [1, 2] : [2]
+  return candidates.filter(type => types.includes(type) || (unassigned
     && allowsUnassigned(row, type, types.includes(1) || types.includes(3))))
 
 }

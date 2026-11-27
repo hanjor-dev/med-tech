@@ -64,7 +64,7 @@ test('医疗文档可独立修订，入口反映当前批次中相应数据包�
 })
 
 test('列表和详情按实际包类型分组，空包由资质决定入口，单一反向包只显示自己的工艺', () => {
-  const row = { orderType: 2, needsPhysicalDelivery: null, status: 2020, medicalPackageAllowed: true }
+  const row = { orderType: 1, needsPhysicalDelivery: null, status: 2020, medicalPackageAllowed: true }
   const all = () => true
   for (const source of [
     { productionTypes: [1, 2] },
@@ -143,7 +143,11 @@ test('表单只接收本工单同类型数据包，保留可查历史，打开�
 })
 
 test('未占用包的首次办理取决于资质和现有资料，冲突包排除在两个入口外', () => {
-  const row = { orderType: 2, needsPhysicalDelivery: 1, hasUnassignedPackage: true }
+  const row = { orderType: 1, needsPhysicalDelivery: 1, hasUnassignedPackage: true }
+  const nonMedical = { ...row, orderType: 2, medicalPackageAllowed: true }
+  assert.deepEqual(branch.productionTypesForOrder(nonMedical), [2])
+  assert.deepEqual(branch.packagesForProduction(nonMedical, [{ productionType: null }, { productionType: 1 }], 1), [])
+  assert.deepEqual(branch.productionTypesForOrder({ ...nonMedical, productionTypes: [1, 2] }), [2])
   const pkg = { id: 1, productionType: null }
   for (const [qualified, recorded, routes] of [
     [true, 2, [1, 2]], [false, 2, [2]], [false, 1, [1]], [false, 3, []],
