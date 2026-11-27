@@ -158,7 +158,22 @@
           <div style="display:flex;flex-direction:column;gap:8px">
             <processing-document-file v-if="detail.processingApplicationFile"
               :file="{ ...detail.processingApplicationFile, previewUrl: detail.processingApplicationFile.fileUrl }"
-              :can-download="detail.status !== 9010" />
+              archived can-preview>
+                <template #default="{ download, downloading, openPreview }">
+                  <div class="dwd-file-card">
+                    <div class="dwd-file-card__icon instruction">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <div class="dwd-file-card__info">
+                      <span class="dwd-file-card__name" :title="detail.processingApplicationFile.fileName">加工申请单</span>
+                    </div>
+                    <div class="dwd-file-card__actions">
+                      <el-button size="small" @click="openPreview">预览</el-button>
+                      <el-button v-if="detail.status !== 9010" size="small" type="primary" :loading="downloading" @click="download">下载</el-button>
+                    </div>
+                  </div>
+                </template>
+            </processing-document-file>
             <div v-if="detail.instructionFile" class="dwd-file-card">
               <div class="dwd-file-card__icon instruction">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -356,7 +371,7 @@ watch(() => [props.modelValue, props.id] as const, async ([open, id], _, onClean
   } finally {
     if (current) loading.value = false
   }
-})
+}, { immediate: true })
 
 watch(visible, (val) => { if (!val) { emit('update:modelValue', false); emit('close') } })
 

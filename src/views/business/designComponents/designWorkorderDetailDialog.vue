@@ -119,7 +119,7 @@
             </svg>
             邮寄
           </div>
-          <div class="dwd-flag-item dwd-flag-item--delivery" v-if="workorder.needsPhysicalDelivery === 1">
+          <div class="dwd-flag-item dwd-flag-item--delivery" v-if="isLocalPhysical(workorder)">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path
                 d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -284,11 +284,14 @@
                     <span v-if="pkg.batchId" class="dwd-pkg-card__append-badge">追加</span>
                   </div>
                   <div class="dwd-pkg-card__tags">
-                    <el-tag size="small" effect="light" v-if="usesProcessingApplication(workorder)">
-                      {{ pkg.processingApplication ? '加工申请已归档' : pkg.printInfoCompleted ? '加工资料已填' : '加工资料待补充' }}
+                    <el-tag size="small" effect="plain" v-if="packageProductionType(workorder, pkg)">
+                      {{ productionTypeNames[packageProductionType(workorder, pkg)!] }}
                     </el-tag>
-                    <el-tag size="small" effect="light" v-if="pkg.latestInstruction">指令单</el-tag>
-                    <el-tag size="small" type="primary" effect="light" v-if="pkg.latestDrawings?.length">图纸</el-tag>
+                    <el-tag size="small" effect="light" v-if="usesProcessingApplication(workorder, pkg)">
+                      加工申请单
+                    </el-tag>
+                    <el-tag size="small" effect="light" v-if="canViewMedicalDocuments && pkg.latestInstruction">指令单</el-tag>
+                    <el-tag size="small" type="primary" effect="light" v-if="canViewMedicalDocuments && pkg.latestDrawings?.length">图纸</el-tag>
                     <span class="dwd-pkg-card__file-count">{{ pkg.fileCount }} 个文件</span>
                   </div>
                 </div>
@@ -319,95 +322,44 @@
                   </div>
                 </div>
 
-                <processing-document-file v-if="pkg.processingApplication" :file="pkg.processingApplication"
-                  :revision="pkg.processingApplication.revision" />
+                <div v-if="usesProcessingApplication(workorder, pkg) && pkg.processingApplication && userInfo.hasPermission('design:ProcessingApplicationView')" class="dwd-pkg-versions">
+                  <processing-document-file :file="pkg.processingApplication" :revision="pkg.processingApplication.revision" />
+                </div>
                 <!-- 版本信息 -->
-                <div v-if="pkg.latestInstruction || pkg.latestDrawings?.length" class="dwd-pkg-versions">
-                  <div v-if="pkg.latestInstruction" class="dwd-pkg-ver dwd-pkg-ver--instr">
-                    <div class="dwd-pkg-ver__label">
-                      <el-icon size="10" color="#0891b2">
-                        <Document />
-                      </el-icon>
-                      指令单
-                      <span class="dwd-confirmed-badge" v-if="pkg.latestInstruction.isConfirmed === 1">
-                        <span class="dwd-confirmed-badge__dot"></span>
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        已确认
-                      </span>
+                <div v-if="canViewMedicalDocuments && (pkg.latestInstruction || pkg.latestDrawings?.length)" class="dwd-pkg-versions">
+                  <PackageDocumentCard v-if="pkg.latestInstruction" label="指令单" :confirmed="pkg.latestInstruction.isConfirmed === 1">
+                    <div v-if="pkg.latestInstruction.templateFileUrl" class="dwd-pkg-ver__item">
+                      <span>版本 {{ pkg.latestInstruction.version }}</span>
+                      <el-button link size="small"
+                        @click="handleDownloadFile(pkg.latestInstruction!.templateDownloadUrl ?? '', pkg.latestInstruction!.templateFileUrl, `指令单模板_v${pkg.latestInstruction!.version}.${getExt(pkg.latestInstruction!.templateFileUrl)}`)">
+                        <PackageDownloadIcon />
+                      </el-button>
                     </div>
-                    <div class="dwd-pkg-ver__items">
-                      <div v-if="pkg.latestInstruction.templateFileUrl" class="dwd-pkg-ver__item">
-                        <span>版本 {{ pkg.latestInstruction.version }}</span>
-                        <el-button link size="small"
-                          @click="handleDownloadFile(pkg.latestInstruction!.templateDownloadUrl ?? '', pkg.latestInstruction!.templateFileUrl, `指令单模板_v${pkg.latestInstruction!.version}.${getExt(pkg.latestInstruction!.templateFileUrl)}`)">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                        </el-button>
-                      </div>
-                      <div v-if="pkg.latestInstruction.revisedFileUrl" class="dwd-pkg-ver__item">
-                        <span>修订版</span>
-                        <el-button link size="small"
-                          @click="handleDownloadFile(pkg.latestInstruction!.revisedDownloadUrl ?? '', pkg.latestInstruction!.revisedFileUrl, `指令单修订版.${getExt(pkg.latestInstruction!.revisedFileUrl)}`)">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                        </el-button>
-                      </div>
+                    <div v-if="pkg.latestInstruction.revisedFileUrl" class="dwd-pkg-ver__item">
+                      <span>修订版</span>
+                      <el-button link size="small"
+                        @click="handleDownloadFile(pkg.latestInstruction!.revisedDownloadUrl ?? '', pkg.latestInstruction!.revisedFileUrl, `指令单修订版.${getExt(pkg.latestInstruction!.revisedFileUrl)}`)">
+                        <PackageDownloadIcon />
+                      </el-button>
                     </div>
-                  </div>
-                  <div v-for="drawing in pkg.latestDrawings" :key="drawing.id" class="dwd-pkg-ver dwd-pkg-ver--draw">
-                    <div class="dwd-pkg-ver__label">
-                      <el-icon size="10" color="#0891b2">
-                        <DocumentChecked />
-                      </el-icon>
-                      图纸
-                      <span class="dwd-category-tag">{{ drawing.productCategory === '17.1' ? '模型类' : '导板类' }}</span>
-                      <span class="dwd-confirmed-badge" v-if="drawing.isConfirmed === 1">
-                        <span class="dwd-confirmed-badge__dot"></span>
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        已确认
-                      </span>
+                  </PackageDocumentCard>
+                  <PackageDocumentCard v-for="drawing in pkg.latestDrawings" :key="drawing.id" label="图纸" drawing
+                    :category="drawing.productCategory === '17.1' ? '模型类' : '导板类'" :confirmed="drawing.isConfirmed === 1">
+                    <div v-if="drawing.templateFileUrl" class="dwd-pkg-ver__item">
+                      <span>版本 {{ drawing.version }}</span>
+                      <el-button link size="small"
+                        @click="handleDownloadFile(drawing.templateDownloadUrl ?? '', drawing.templateFileUrl, `图纸模板_v${drawing.version}.${getExt(drawing.templateFileUrl)}`)">
+                        <PackageDownloadIcon />
+                      </el-button>
                     </div>
-                    <div class="dwd-pkg-ver__items">
-                      <div v-if="drawing.templateFileUrl" class="dwd-pkg-ver__item">
-                        <span>版本 {{ drawing.version }}</span>
-                        <el-button link size="small"
-                          @click="handleDownloadFile(drawing.templateDownloadUrl ?? '', drawing.templateFileUrl, `图纸模板_v${drawing.version}.${getExt(drawing.templateFileUrl)}`)">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                        </el-button>
-                      </div>
-                      <div v-if="drawing.revisedFileUrl" class="dwd-pkg-ver__item">
-                        <span>修订版</span>
-                        <el-button link size="small"
-                          @click="handleDownloadFile(drawing.revisedDownloadUrl ?? '', drawing.revisedFileUrl, `图纸修订版.${getExt(drawing.revisedFileUrl)}`)">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </svg>
-                        </el-button>
-                      </div>
+                    <div v-if="drawing.revisedFileUrl" class="dwd-pkg-ver__item">
+                      <span>修订版</span>
+                      <el-button link size="small"
+                        @click="handleDownloadFile(drawing.revisedDownloadUrl ?? '', drawing.revisedFileUrl, `图纸修订版.${getExt(drawing.revisedFileUrl)}`)">
+                        <PackageDownloadIcon />
+                      </el-button>
                     </div>
-                  </div>
+                  </PackageDocumentCard>
                 </div>
               </div>
             </div>
@@ -557,11 +509,7 @@
         <div class="maad-action-btn maad-action-submit" v-if="workorder?.submitCheck.canSubmit && workorder?.status !== 2040" :class="{ 'is-loading': submitLoading }" @click="handleSubmitCheck" v-permission="'design:SubmitCheck'">
           <span class="maad-action-label">提交设计审核</span>
         </div> -->
-        <el-alert v-if="completeError" type="error" :title="completeError" :closable="false" />
-        <template v-if="workorder">
-          <el-button v-for="action in productionActions(workorder)" :key="action.command"
-            @click="emit('production', action.command, workorder)">{{ action.label }}</el-button>
-        </template>
+        <el-alert v-if="completionIssue" type="error" :title="completionIssue" :closable="false" />
         <el-button type="primary" @click="handleCompleteDesign" :loading="completingDesign"
           v-if="workorder?.status === 2020" v-permission="'design:Complete'">完成设计</el-button>
         <el-button type="primary" @click="handleStartDesign" :loading="startingDesign"
@@ -625,16 +573,19 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import PackageDownloadIcon from './PackageDownloadIcon.vue'
+import PackageDocumentCard from './PackageDocumentCard.vue'
 import ProcessingDocumentFile from './processingDocumentFile.vue'
 import dialogModal from '@/components/dialogModal.vue'
 import { ElTag, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
 import {
   CircleCheckFilled, Loading,
-  Document, DocumentChecked,
+  Document,
 } from '@element-plus/icons-vue'
 import { designWorkorderDetail, designWorkorderStart, designWorkorderCompleteDesign, designWorkorderAuditPass, designWorkorderAuditReject, designWorkorderSubmitDesign, assignmentHistory, designWorkorderSaveDesignerRemark, type DesignWorkorderDetailVO, type AssignmentHistoryItem } from '@/api/design'
 import { Session } from '@/utils/storage'
-import { usesProcessingApplication, type ProductionOrder } from '../productionBranch'
+import { useUserInfo } from '@/stores/userInfo'
+import { isLocalPhysical, packageProductionType, productionTypeNames, usesProcessingApplication } from '../productionBranch'
 import dayjs from 'dayjs'
 
 defineOptions({ name: 'DesignWorkorderDetailDialog' })
@@ -643,12 +594,10 @@ const props = defineProps<{
   modelValue: boolean
   workorderId: number | null
   refreshVersion: number
-  productionActions: (row: ProductionOrder) => { command: string; label: string }[]
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
-  (e: 'production', command: string, row: ProductionOrder): void
   (e: 'close'): void
   (e: 'refresh'): void
 }>()
@@ -657,6 +606,7 @@ const visible = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
+const userInfo = useUserInfo()
 const loading = ref(false)
 const startingDesign = ref(false)
 const completingDesign = ref(false)
@@ -664,6 +614,7 @@ const submitLoading = ref(false)
 const approveLoading = ref(false)
 const rejectLoading = ref(false)
 const workorder = ref<DesignWorkorderDetailVO | null>(null)
+const canViewMedicalDocuments = computed(() => workorder.value && (!isLocalPhysical(workorder.value) || userInfo.hasPermission('design:DocumentPreview')))
 
 // ── 设计师备注 ──────────────────────────────────────────────────
 const designerRemark = ref('')
@@ -685,10 +636,14 @@ const handleSaveRemark = async () => {
     remarkError.value = true
     return
   }
+  const orderId = workorder.value.id
+  const submitted = designerRemark.value
   remarkSaving.value = true
   try {
-    await designWorkorderSaveDesignerRemark(workorder.value.id, designerRemark.value.trim())
-    designerRemarkOriginal.value = designerRemark.value.trim()
+    await designWorkorderSaveDesignerRemark(orderId, submitted.trim())
+    if (workorder.value?.id !== orderId) return
+    designerRemarkOriginal.value = submitted.trim()
+    if (designerRemark.value === submitted) designerRemark.value = submitted.trim()
     ElMessage.success('备注保存成功')
   } catch {
   } finally {
@@ -715,18 +670,25 @@ const openHistory = async () => {
   }
 }
 
+const completeError = ref('')
+const completionIssue = computed(() => completeError.value || (workorder.value?.status === 2020 && workorder.value.submitCheck?.blockReason) || '')
+let detailRequest = 0
 watch(() => [props.modelValue, props.workorderId, props.refreshVersion] as const, async ([val, id]) => {
+  const ticket = ++detailRequest
+  completeError.value = ''
   if (val && id) {
     loading.value = true
-    workorder.value = null
+    if (workorder.value?.id !== id) workorder.value = null
     try {
       const res = await designWorkorderDetail(id)
-      workorder.value = res as any
-      loadRemark()
+      if (ticket !== detailRequest) return
+      const keepRemark = workorder.value?.id === id && isRemarkChanged.value
+      workorder.value = res
+      if (!keepRemark) loadRemark()
     } catch {
-      ElMessage.error('加载工单详情失败')
+      if (ticket === detailRequest) ElMessage.error('加载工单详情失败')
     } finally {
-      loading.value = false
+      if (ticket === detailRequest) loading.value = false
     }
   } else {
     workorder.value = null
@@ -748,18 +710,19 @@ const handleStartDesign = async () => {
   }
 }
 
-const completeError = ref('')
 const handleCompleteDesign = async () => {
+  const ticket = detailRequest
   completeError.value = ''
   if (!workorder.value) return
   try {
     completingDesign.value = true
     await designWorkorderCompleteDesign(workorder.value.id, workorder.value.version)
+    if (ticket !== detailRequest) return
     ElMessage.success('设计已完成')
     visible.value = false
     emit('refresh')
   } catch (failure) {
-    completeError.value = failure instanceof Error ? failure.message : String(failure || '完成设计失败')
+    if (ticket === detailRequest) completeError.value = failure instanceof Error ? failure.message : String(failure || '完成设计失败')
   } finally {
     completingDesign.value = false
   }
@@ -1752,111 +1715,6 @@ const getExt = (url: string): string => url.split('.').pop() || ''
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-bottom: 8px;
-}
-
-.dwd-pkg-ver {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-
-  &--instr {
-    background: linear-gradient(135deg, var(--blue-pale) 0%, #e8f2ff 100%);
-    border-color: #bfdbfe;
-  }
-
-  &--draw {
-    background: linear-gradient(135deg, #fffbf0 0%, #fff9e6 100%);
-    border-color: #fde68a;
-  }
-}
-
-
-.dwd-pkg-ver__label {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  font-size: 10px;
-  font-weight: 800;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 6px;
-}
-
-.dwd-pkg-ver__items {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.dwd-pkg-ver__item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: #475569;
-
-  >span {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .el-button {
-    color: #94a3b8;
-    padding: 2px;
-    flex-shrink: 0;
-
-    &:hover {
-      color: #0891b2;
-    }
-  }
-}
-
-.dwd-category-tag {
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #e0e7ff;
-  color: #4338ca;
-  margin-left: 4px;
-}
-
-.dwd-confirmed-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 7px 2px 4px;
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  border: 1px solid #6ee7b7;
-  border-radius: 9999px;
-  font-size: 10px;
-  font-weight: 700;
-  color: #065f46;
-  letter-spacing: 0.2px;
-  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.2);
-  flex-shrink: 0;
-
-  svg {
-    color: #059669;
-    flex-shrink: 0;
-  }
-
-  &__dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #059669;
-    flex-shrink: 0;
-    animation: dwd-confirmed-pulse 2s ease-in-out infinite;
-  }
-}
-
-@keyframes dwd-confirmed-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
 }
 
 // ── Empty ───────────────────────────────────────────────────────────────────────

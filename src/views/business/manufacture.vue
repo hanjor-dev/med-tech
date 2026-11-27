@@ -505,13 +505,16 @@ const qrCodeRow = ref<ProductionRecordVO | null>(null)
 const exportDialogVisible = ref(false)
 
 const scanInput = ref('')
-let scanRequest = 0
+let cardRequest = 0
+watch([flowCardVisible, detailDrawerVisible, deviceConfigVisible, qrCodeVisible], (open, previous) => {
+  if (open.some((value, i) => !value && previous[i])) ++cardRequest
+}, { flush: 'sync' })
 const openScannedCard = async (code: string) => {
-  const request = ++scanRequest
   if (!code) return
+  const request = ++cardRequest
   try {
     const id = /^\d+$/.test(code) ? Number(code) : (await scanRecord(code)).id
-    if (request === scanRequest && id) {
+    if (request === cardRequest && id) {
       flowCardId.value = id
       flowCardVisible.value = true
     }
@@ -523,6 +526,7 @@ const handleScanFlowCard = () => {
 }
 
 const handleCommand = (cmd: string, row: ProductionRecordVO) => {
+  ++cardRequest
   if (cmd === 'preview') {
     detailId.value = row.id
     detailDrawerVisible.value = true
@@ -657,13 +661,11 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
 
 const route = useRoute()
 const router = useRouter()
-watch(() => route.query.detailId, async (queryDetailId) => {
+watch(() => [route.query.detailId, route.query.action] as const, async ([queryDetailId, action = 'preview']) => {
   if (queryDetailId) {
     const id = Number(queryDetailId)
-    const action = (route.query.action as string) || 'preview'
-
-    // 等待 DOM 更新，确保子组件已挂载
-    await nextTick()
+    const request = ++cardRequest
+    router.replace({ query: {} })
 
     if (action === 'flowcard') {
       flowCardId.value = id
@@ -673,15 +675,11 @@ watch(() => route.query.detailId, async (queryDetailId) => {
       deviceConfigVisible.value = true
     } else if (action === 'excel' || action === 'qrcode') {
       const record = await getProductionRecordDetail(id) as unknown as ProductionRecordVO
-      handleCommand(action, record)
+      if (request === cardRequest) handleCommand(action, record)
     } else {
       detailId.value = id
       detailDrawerVisible.value = true
     }
-
-    // 再次等待，确保状态更新完成
-    await nextTick()
-    router.replace({ query: {} })
   }
 }, { immediate: true })
 
@@ -693,6 +691,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  ++cardRequest
   document.removeEventListener('keydown', handleGlobalKeydown)
 })
 </script>

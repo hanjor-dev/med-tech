@@ -356,6 +356,9 @@
                     <span v-if="pkg.batchId" class="dwd-pkg-card__append-badge">追加</span>
                   </div>
                   <div class="dwd-pkg-card__tags">
+                    <el-tag v-if="pkg.productionType === 1 || pkg.productionType === 2" size="small" effect="plain">
+                      {{ pkg.productionType === 1 ? '医疗器械' : '非医疗器械' }}
+                    </el-tag>
                     <el-tag size="small" effect="light" v-if="pkg.latestInstruction">指令单</el-tag>
                     <el-tag size="small" type="primary" effect="light" v-if="pkg.latestDrawings?.length">图纸</el-tag>
                     <span class="dwd-pkg-card__file-count">{{ pkg.fileCount }} 个文件</span>
@@ -388,10 +391,10 @@
                   </div>
                 </div>
 
-                <processing-document-file v-if="pkg.processingApplication" :file="pkg.processingApplication"
-                  :revision="pkg.processingApplication.revision" />
                 <!-- 版本信息 -->
-                <div v-if="pkg.latestInstruction || pkg.latestDrawings?.length" class="dwd-pkg-versions">
+                <div v-if="pkg.processingApplication || pkg.latestInstruction || pkg.latestDrawings?.length" class="dwd-pkg-versions">
+                  <processing-document-file v-if="pkg.processingApplication" :file="pkg.processingApplication"
+                    :archived="pkg.processingStatus === 'ARCHIVED'" :revision="pkg.processingApplication.revision" can-preview />
                   <div v-if="pkg.latestInstruction" class="dwd-pkg-ver dwd-pkg-ver--instr">
                     <div class="dwd-pkg-ver__label">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2">

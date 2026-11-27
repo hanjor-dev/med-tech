@@ -1,26 +1,43 @@
 <template>
-  <div class="application-file" aria-label="已归档加工申请单">
-    <span>{{ file.fileName || '加工申请单.xlsx' }} <small v-if="revision">版本 {{ revision }}</small></span>
-    <div>
-      <el-button link type="primary" @click="preview = true">预览</el-button>
-      <el-button v-if="canDownload" link type="primary" :loading="downloading" @click="download">下载</el-button>
-    </div>
+  <div aria-label="加工申请单文件">
+    <slot :download="download" :downloading="downloading" :openPreview="openPreview">
+      <PackageDocumentCard label="加工申请单" :confirmed="file.confirmed">
+        <div class="dwd-pkg-ver__item">
+          <span :title="file.fileName">{{ revision != null ? `版本 V${revision}` : file.fileName }}</span>
+          <el-button v-if="canPreview" link size="small" aria-label="预览" title="预览" @click="openPreview">
+            <el-icon><View /></el-icon>
+          </el-button>
+          <el-button v-if="canDownload" link size="small" aria-label="下载" title="下载" :loading="downloading" @click="download">
+            <PackageDownloadIcon />
+          </el-button>
+        </div>
+      </PackageDocumentCard>
+    </slot>
   </div>
-  <xlsx-preview-dialog v-model="preview" :file-url="file.previewUrl" :file-name="file.fileName"
-    file-type="processing" :can-edit="false" />
+  <xlsx-preview-dialog v-if="canPreview && preview" v-model="preview" :file-url="file.previewUrl" :file-name="file.fileName"
+    file-type="processing" :archived="archived" :can-edit="!!editable" :confirmed="file.confirmed"
+    :order-id="orderId" :package-id="packageId" :batch-id="batchId" :file-id="file.documentId" :expected-revision="revision"
+    @processing-confirmed="emit('confirmed')" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { View } from '@element-plus/icons-vue'
+import PackageDocumentCard from './PackageDocumentCard.vue'
+import PackageDownloadIcon from './PackageDownloadIcon.vue'
 import XlsxPreviewDialog from './xlsxPreviewDialog.vue'
 
 const props = withDefaults(defineProps<{
-  file: { fileName?: string; previewUrl: string; downloadUrl?: string | null }
+  orderId?: number; packageId?: number; batchId?: number | null; editable?: boolean; archived?: boolean
+  file: { confirmed?: boolean; documentId?: number; fileName?: string; previewUrl: string; downloadUrl?: string | null }
   revision?: number
+  canPreview?: boolean
   canDownload?: boolean
 }>(), { canDownload: true })
+const emit = defineEmits<{ confirmed: [] }>()
 const preview = ref(false)
+function openPreview() { preview.value = true }
 const downloading = ref(false)
 async function download() {
   if (downloading.value) return
@@ -50,8 +67,3 @@ async function download() {
   }
 }
 </script>
-
-<style scoped>
-.application-file { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; color: #294759; background: #f3f8fa; border-radius: 6px; }
-small { color: #677887; }
-</style>
